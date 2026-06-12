@@ -423,6 +423,32 @@
   }
   .panel-explainer { margin: 0 0 14px; font-size: 13.5px; color: var(--graphite); }
 
+  /* ---- inbox folder setting ---- */
+  .folder-setting { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 16px; }
+  .folder-field {
+    display: flex; align-items: center; gap: 9px;
+    flex: 1; min-width: 200px; height: 40px; padding: 0 12px;
+    background: var(--ivory); border: 1px solid var(--hairline); border-radius: 10px;
+    color: var(--graphite); transition: border-color 150ms ease-out;
+  }
+  .folder-field:focus-within { border-color: var(--champagne); }
+  .folder-input {
+    flex: 1; min-width: 0; border: none; background: none; outline: none;
+    font-family: var(--mono); font-size: 12.5px; color: var(--ink);
+  }
+  .folder-pick {
+    display: flex; align-items: center; gap: 7px;
+    height: 40px; padding: 0 14px; white-space: nowrap;
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 10px;
+    color: var(--graphite); font-size: 13px; font-weight: 500;
+    transition: border-color 150ms ease-out, color 150ms ease-out;
+  }
+  .folder-pick:hover { border-color: var(--champagne); color: var(--ink); }
+  .folder-saved {
+    font-family: var(--mono); font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--champagne); flex: none;
+  }
+
   .inbox-list { display: flex; flex-direction: column; }
   .inbox-row {
     display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 14px;
@@ -603,6 +629,14 @@ function ChevronDown() {
     <svg className="ico chev" viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
       <line x1="2.5" y1="4.5" x2="6" y2="8"></line>
       <line x1="9.5" y1="4.5" x2="6" y2="8"></line>
+    </svg>
+  );
+}
+
+function FolderIcon() {
+  return (
+    <svg className="ico" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.5 6.5a1.5 1.5 0 0 1 1.5-1.5h3l1.5 1.8h6a1.5 1.5 0 0 1 1.5 1.5v5.2a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5z"></path>
     </svg>
   );
 }
@@ -1085,11 +1119,37 @@ const ADMIN_FAILED = [
   { file: 'SW-2841_beauty.tiff', reason: 'Unsupported format. Convert to PNG and re-drop.' }
 ];
 
+const DEFAULT_INBOX = '/data/inbox';
+
 function AdminScreen({ onBack }) {
   const [classifying, setClassifying] = React.useState(0); // 0 idle, 1 running, 2 queued
   const runClassify = () => {
     setClassifying(1);
     setTimeout(() => setClassifying(2), 1500);
+  };
+
+  // Adjustable inbox location — staff can type a path or pick a folder.
+  const [inboxPath, setInboxPath] = React.useState(() => {
+    try { return localStorage.getItem('rf_inbox_path') || DEFAULT_INBOX; } catch (e) { return DEFAULT_INBOX; }
+  });
+  const [saved, setSaved] = React.useState(false);
+  const folderInputRef = React.useRef(null);
+
+  const persistPath = (p) => {
+    const next = (p && p.trim()) || DEFAULT_INBOX;
+    setInboxPath(next);
+    try { localStorage.setItem('rf_inbox_path', next); } catch (e) {}
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  };
+  const onPickFolder = (e) => {
+    const files = e.target.files;
+    if (files && files.length) {
+      const rel = files[0].webkitRelativePath || files[0].name;
+      const folder = rel.split('/')[0];
+      if (folder) persistPath(folder);
+    }
+    e.target.value = '';
   };
   return (
     <div className="admin" data-screen-label="Admin status">
@@ -1108,7 +1168,22 @@ function AdminScreen({ onBack }) {
       <div className="admin-cols">
         <div className="panel">
           <span className="section-label">Inbox</span>
-          <p className="panel-explainer">Drop render files into the inbox folder on the NAS — they appear here as they're processed.</p>
+          <p className="panel-explainer">Drop render files into the inbox folder below — they appear here as they're processed.</p>
+          <div className="folder-setting">
+            <label className="folder-field">
+              <FolderIcon></FolderIcon>
+              <input className="folder-input" value={inboxPath} aria-label="Inbox folder path"
+                onChange={(e) => setInboxPath(e.target.value)}
+                onBlur={(e) => persistPath(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); persistPath(e.target.value); e.target.blur(); } }}></input>
+            </label>
+            <button className="folder-pick" onClick={() => folderInputRef.current && folderInputRef.current.click()}>
+              <FolderIcon></FolderIcon><span>Choose folder…</span>
+            </button>
+            <input ref={folderInputRef} type="file" webkitdirectory="" directory=""
+              style={{ display: 'none' }} onChange={onPickFolder}></input>
+            {saved && <span className="folder-saved">Saved ✓</span>}
+          </div>
           <div className="inbox-list">
             {ADMIN_INBOX.map((row) => (
               <div className={'inbox-row' + (row.processing ? ' processing' : '')} key={row.file}>
