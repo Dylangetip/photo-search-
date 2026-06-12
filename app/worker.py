@@ -107,10 +107,12 @@ def classify_pending(limit: int | None = None) -> int:
             continue
         paths = [config.DATA_DIR / r["file_path"] for r in view_rows[:4]]
         try:
-            tags = classify_views(paths)
+            tags, usage = classify_views(paths)
             db.set_tags(sku, tags, "done")
+            db.log_api_usage("sku_classify", sku, config.CLASSIFY_MODEL, usage)
             done += 1
-            log.info("classified %s", sku)
+            log.info("classified %s (%d in / %d out tokens)",
+                     sku, usage["input_tokens"], usage["output_tokens"])
         except Exception as e:  # API failure: keep pending, retry next cycle
             log.warning("classification failed for %s (will retry): %s", sku, e)
     return done

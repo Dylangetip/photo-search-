@@ -6,19 +6,19 @@ from .test_api import client
 
 
 def seed_two_rings():
-    """Two SKUs whose embeddings are deliberately ambiguous to a query vector."""
+    """Two SKUs at realistic photo->CAD cosines (~0.7), nearly tied."""
     db.upsert_sku("ROUND-RG")
     db.upsert_sku("OVAL-YG")
-    v = np.zeros(4, dtype=np.float32)
-    a = v.copy(); a[0] = 1.0
-    b = v.copy(); b[0] = 0.98; b[1] = np.sqrt(1 - 0.98 ** 2)
+    z = np.zeros(4, dtype=np.float32)
+    a = z.copy(); a[0] = 0.75; a[1] = np.sqrt(1 - 0.75 ** 2)   # cos 0.75 to q
+    b = z.copy(); b[0] = 0.73; b[2] = np.sqrt(1 - 0.73 ** 2)   # cos 0.73 to q
     db.add_view("ROUND-RG", "r.png", "single", b)   # slightly worse cosine
     db.add_view("OVAL-YG", "o.png", "single", a)    # slightly better cosine
     db.set_tags("ROUND-RG", {"metal_color": "rose_gold", "center_stone_shape": "round",
                              "setting_type": "solitaire"}, "done")
     db.set_tags("OVAL-YG", {"metal_color": "yellow_gold", "center_stone_shape": "oval",
                             "setting_type": "halo"}, "done")
-    q = v.copy(); q[0] = 1.0
+    q = z.copy(); q[0] = 1.0
     return q
 
 
@@ -55,6 +55,17 @@ class TestRerank:
         assert reranked[0]["sku"] == "ROUND-RG"  # attributes flip it
         assert reranked[0]["attr_match"] == 1.0
 
+    def test_bonus_only_never_lowers_scores(self):
+        """A disagreeing zero-shot read must never bury a strong visual match."""
+        q = seed_two_rings()
+        results = search.search_by_embedding(q, {}, top_k=36)
+        before = {r["sku"]: r["score"] for r in results}
+        wrong_tags = {"metal_color": "white_gold", "center_stone_shape": "pear",
+                      "setting_type": "bezel"}
+        out = search.rerank_with_query_tags(results, wrong_tags, 0.25)
+        for r in out:
+            assert r["score"] >= before[r["sku"]]  # never penalized
+
     def test_untagged_skus_not_penalized(self):
         db.upsert_sku("NOTAGS")
         v = np.zeros(4, dtype=np.float32); v[0] = 1.0
@@ -66,15 +77,75 @@ class TestRerank:
         assert out[0]["score"] == before  # cosine untouched
 
 
-class TestEndpointWithQueryClassify:
-    def test_query_tags_in_response(self, monkeypatch):
+class TestLocalAttrs:
+    def test_detect_returns_taxonomy_values_only(self):
+        from app import local_attrs
+        local_attrs._cache.clear()
+        q = np.random.RandomState(1).randn(32).astype(np.float32)
+        q /= np.linalg.norm(q)
+        tags = local_attrs.detect_attributes(q)
+        for field, value in tags.items():
+            if field.startswith("_"):
+                continue
+            assert value in local_attrs.PROMPT_SETS[field]
+
+    def test_uncertain_fields_omitted(self, monkeypatch):
+        """With a high acceptance bar nothing should be detected from noise."""
+        from app import local_attrs
+        local_attrs._cache.clear()
+        monkeypatch.setattr(local_attrs, "ACCEPT_PROB", 1.01)  # unreachable bar
+        q = np.random.RandomState(2).randn(32).astype(np.float32)
+        q /= np.linalg.norm(q)
+        tags = local_attrs.detect_attributes(q)
+        assert not [k for k in tags if not k.startswith("_")]
+
+
+class TestMultiCropSearch:
+    def test_2d_query_takes_best_crop(self):
+        db.upsert_sku("A")
+        v = np.zeros(4, dtype=np.float32); v[0] = 1.0
+        db.add_view("A", "a.png", "single", v)
+        bad = np.zeros(4, dtype=np.float32); bad[1] = 1.0
+        results = search.search_by_embedding(np.stack([bad, v]), {})
+        assert results[0]["score"] == 1.0  # max over crops, not first crop
+
+
+class TestEndpointIsFullyLocal:
+    def test_image_search_makes_zero_api_calls(self, monkeypatch):
+        """The core requirement: image search must consume zero tokens."""
         from .test_api import setup_catalog
         setup_catalog()
-        monkeypatch.setattr(config, "QUERY_CLASSIFY", True)
-        monkeypatch.setattr(config, "CLASSIFY_ENABLED", True)
+        # Even with a key configured, no anthropic client may be constructed.
         monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "test-key")
-        monkeypatch.setattr(classify, "classify_query_image",
-                            lambda img: {"metal_color": "yellow_gold",
+        monkeypatch.setattr(config, "CLASSIFY_ENABLED", True)
+        import sys
+
+        class Bomb:
+            def __getattr__(self, name):
+                raise AssertionError("anthropic API touched during image search!")
+        monkeypatch.setitem(sys.modules, "anthropic", Bomb())
+
+        import io
+
+        from .test_pipeline import make_beauty
+        buf = io.BytesIO(); make_beauty().save(buf, format="PNG")
+        with client() as c:
+            r = c.post("/api/search/image",
+                       files={"file": ("q.png", buf.getvalue(), "image/png")})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["usage"] is None
+        assert len(body["results"]) > 0
+        with db.connect() as conn:
+            assert conn.execute("SELECT COUNT(*) c FROM api_usage").fetchone()["c"] == 0
+
+    def test_local_tags_boost_matching_sku(self, monkeypatch):
+        from app import local_attrs
+
+        from .test_api import setup_catalog
+        setup_catalog()
+        monkeypatch.setattr(local_attrs, "detect_attributes",
+                            lambda vec: {"metal_color": "yellow_gold",
                                          "center_stone_shape": "marquise",
                                          "setting_type": "solitaire"})
         import io
@@ -86,19 +157,23 @@ class TestEndpointWithQueryClassify:
                        files={"file": ("q.png", buf.getvalue(), "image/png")})
         body = r.json()
         assert body["query_tags"]["center_stone_shape"] == "marquise"
-        # SKU123 is tagged marquise/yellow_gold/solitaire -> should be boosted to #1
-        assert body["results"][0]["sku"] == "SKU123"
+        # The query is the exact image indexed for SKU456, so the visual match
+        # stays #1 (bonus-only rerank never buries an exact match) — but
+        # SKU123 (tagged marquise/yellow_gold/solitaire) must carry the boost.
+        assert body["results"][0]["sku"] == "SKU456"
+        sku123 = next(r for r in body["results"] if r["sku"] == "SKU123")
+        assert sku123["attr_match"] == 1.0
+        assert sku123["score"] > 0  # boosted score present
 
-    def test_classification_failure_falls_back(self, monkeypatch):
+    def test_detection_failure_falls_back_to_clip(self, monkeypatch):
+        from app import local_attrs
+
         from .test_api import setup_catalog
         setup_catalog()
-        monkeypatch.setattr(config, "QUERY_CLASSIFY", True)
-        monkeypatch.setattr(config, "CLASSIFY_ENABLED", True)
-        monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "test-key")
 
-        def boom(img):
-            raise RuntimeError("API down")
-        monkeypatch.setattr(classify, "classify_query_image", boom)
+        def boom(vec):
+            raise RuntimeError("detector exploded")
+        monkeypatch.setattr(local_attrs, "detect_attributes", boom)
         import io
 
         from .test_pipeline import make_beauty
@@ -107,6 +182,19 @@ class TestEndpointWithQueryClassify:
             r = c.post("/api/search/image",
                        files={"file": ("q.png", buf.getvalue(), "image/png")})
         assert r.status_code == 200
-        body = r.json()
-        assert body["query_tags"] is None
-        assert len(body["results"]) > 0  # plain CLIP results still returned
+        assert r.json()["query_tags"] is None
+        assert len(r.json()["results"]) > 0
+
+
+class TestUsageTracking:
+    def test_sku_classify_usage_logged_and_summed(self):
+        db.log_api_usage("sku_classify", "SKU1", "claude-sonnet-4-6",
+                         {"input_tokens": 4000, "output_tokens": 300})
+        db.log_api_usage("sku_classify", "SKU2", "claude-sonnet-4-6",
+                         {"input_tokens": 5000, "output_tokens": 400})
+        u = db.usage_stats()
+        assert u["total"]["calls"] == 2
+        assert u["total"]["input_tokens"] == 9000
+        assert u["by_kind"]["sku_classify"]["output_tokens"] == 700
+        # 9000*3/1e6 + 700*15/1e6 = 0.027 + 0.0105
+        assert abs(u["total"]["estimated_cost_usd"] - 0.0375) < 1e-6

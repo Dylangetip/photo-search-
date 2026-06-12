@@ -36,33 +36,6 @@ and ONLY the allowed values:
 Boolean fields must be true/false. style_tags must be a subset of the listed values. \
 annotated_dimensions_mm is {} when no annotations are visible. overall_confidence is 0.0-1.0."""
 
-QUERY_PROMPT = """\
-You are a jewelry cataloger. You are shown a customer's photo of a ring — it may be \
-a phone photo on a hand, a social-media screenshot, low resolution, or show a ring \
-stack (engagement ring worn with a wedding band). Describe ONLY the main engagement \
-ring: the one with the largest center stone. Ignore plain bands, hands, and background.
-
-Respond with ONLY a JSON object — no prose, no code fences — using EXACTLY this schema \
-and ONLY the allowed values:
-
-{
-  "metal_color": "yellow_gold|white_gold|rose_gold|two_tone|platinum_look|other",
-  "center_stone_shape": "round|oval|marquise|pear|emerald|cushion|princess|radiant|asscher|heart|none|other",
-  "setting_type": "solitaire|halo|hidden_halo|three_stone|cluster|bezel|tension|eternity|other",
-  "side_stones": true,
-  "pave": "none|pave|channel|bead|unclear",
-  "milgrain": true,
-  "engraving": true,
-  "cathedral": true,
-  "band_style": "straight|tapered|split_shank|twisted|knife_edge|other",
-  "style_tags": ["vintage", "modern", "classic", "nature_inspired", "art_deco", "minimalist", "ornate", "romantic"],
-  "confidence_notes": "one sentence on any field you are unsure about",
-  "overall_confidence": 0.0
-}
-
-If a field is not visible in the photo, use "other"/"unclear" rather than guessing. \
-overall_confidence is 0.0-1.0."""
-
 _MEDIA = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
 
 
@@ -77,8 +50,20 @@ def parse_tags(text: str) -> dict:
     return json.loads(text[start:end + 1])
 
 
-def classify_views(view_paths: list[Path]) -> dict:
-    """One Anthropic API call with up to 4 view images. Raises on any failure."""
+def _usage_of(response) -> dict:
+    """Exact token usage from an API response (the source of truth for billing)."""
+    u = response.usage
+    return {
+        "input_tokens": getattr(u, "input_tokens", 0) or 0,
+        "output_tokens": getattr(u, "output_tokens", 0) or 0,
+        "cache_read_tokens": getattr(u, "cache_read_input_tokens", 0) or 0,
+        "cache_creation_tokens": getattr(u, "cache_creation_input_tokens", 0) or 0,
+    }
+
+
+def classify_views(view_paths: list[Path]) -> tuple[dict, dict]:
+    """One Anthropic API call with up to 4 view images. Returns (tags, usage).
+    Raises on any failure."""
     if not config.ANTHROPIC_API_KEY:
         raise RuntimeError("ANTHROPIC_API_KEY not set")
     import anthropic
@@ -101,43 +86,5 @@ def classify_views(view_paths: list[Path]) -> dict:
         messages=[{"role": "user", "content": content}],
     )
     text = next((b.text for b in response.content if b.type == "text"), "")
-    return parse_tags(text)
+    return parse_tags(text), _usage_of(response)
 
-
-def classify_query_image(img) -> dict:
-    """Classify a customer's query photo (in-memory PIL image). One API call.
-
-    Sends the ORIGINAL photo (downscaled), not the rembg-cleaned crop — the
-    model reads metal color and setting better with full photo context, and
-    it's instructed to ignore hands/stacks/background itself.
-    """
-    if not config.ANTHROPIC_API_KEY:
-        raise RuntimeError("ANTHROPIC_API_KEY not set")
-    import io
-
-    import anthropic
-
-    img = img.convert("RGB")
-    w, h = img.size
-    if max(w, h) > 768:
-        s = 768 / max(w, h)
-        img = img.resize((round(w * s), round(h * s)))
-    buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=88)
-    data = base64.standard_b64encode(buf.getvalue()).decode("utf-8")
-
-    client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
-    response = client.messages.create(
-        model=config.CLASSIFY_MODEL,
-        max_tokens=1024,
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "image",
-                 "source": {"type": "base64", "media_type": "image/jpeg", "data": data}},
-                {"type": "text", "text": QUERY_PROMPT},
-            ],
-        }],
-    )
-    text = next((b.text for b in response.content if b.type == "text"), "")
-    return parse_tags(text)

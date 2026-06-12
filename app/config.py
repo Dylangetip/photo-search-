@@ -23,12 +23,17 @@ CLASSIFY_ENABLED = os.environ.get("CLASSIFY_ENABLED", "true").lower() in ("1", "
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 CLASSIFY_MODEL = os.environ.get("CLASSIFY_MODEL", "claude-sonnet-4-6")
 
-# Query-side classification: classify the customer's photo too, and blend
-# attribute agreement into the ranking. This is what bridges messy queries
-# (finger shots, Pinterest screenshots, ring stacks) to clean CAD renders.
-# Adds one API call (~1-2s) per image search; disable for raw-CLIP-only.
-QUERY_CLASSIFY = os.environ.get("QUERY_CLASSIFY", "true").lower() in ("1", "true", "yes")
-QUERY_RERANK_WEIGHT = float(os.environ.get("QUERY_RERANK_WEIGHT", "0.35"))
+# Image search is fully LOCAL — no API calls, no tokens, ever. To bridge messy
+# queries (finger shots, Pinterest screenshots, ring stacks) to clean CAD
+# renders, the query's coarse attributes are read zero-shot with CLIP text
+# prompts (see local_attrs.py) and blended into the ranking.
+LOCAL_ATTRS = os.environ.get("LOCAL_ATTRS", "true").lower() in ("1", "true", "yes")
+QUERY_RERANK_WEIGHT = float(os.environ.get("QUERY_RERANK_WEIGHT", "0.25"))
+
+# Pricing for cost estimates (USD per million tokens). Defaults are
+# claude-sonnet-4-6 rates; override in .env if the model or prices change.
+PRICE_IN_PER_MTOK = float(os.environ.get("PRICE_IN_PER_MTOK", "3.0"))
+PRICE_OUT_PER_MTOK = float(os.environ.get("PRICE_OUT_PER_MTOK", "15.0"))
 
 # Image processing
 VIEW_SIZE = 512          # longest side of derived view images

@@ -72,35 +72,35 @@ async def search_image(file: UploadFile = File(...),
     except Exception:
         return JSONResponse({"error": "Could not read the uploaded image."}, status_code=400)
 
-    # Query-photo classification runs in parallel with preprocessing/embedding —
-    # the API call is network-bound while rembg/CLIP are CPU-bound.
-    classify_future = None
-    if config.QUERY_CLASSIFY and config.CLASSIFY_ENABLED and config.ANTHROPIC_API_KEY:
-        from concurrent.futures import ThreadPoolExecutor
-
-        from .classify import classify_query_image
-        _executor = ThreadPoolExecutor(max_workers=1)
-        classify_future = _executor.submit(classify_query_image, img)
-        _executor.shutdown(wait=False)
-
+    # Image search is 100% local — no API calls, no tokens. Reverse-image-search
+    # style: rembg -> white bg -> CLIP, plus a tighter center crop so a ring
+    # that's small in the frame (finger shots) still dominates one embedding.
     cleaned = pipeline.preprocess_query(img)
-    vec = pipeline.embed_images([cleaned])[0]
+    crops = [cleaned]
+    w, h = cleaned.size
+    if min(w, h) > 64:
+        mx, my = int(w * 0.12), int(h * 0.12)
+        crops.append(cleaned.crop((mx, my, w - mx, h - my)))
+    vecs = pipeline.embed_images(crops)
     flt = _filters(metal_color, center_stone_shape, setting_type)
 
+    # Local zero-shot attribute read (CLIP text prompts — still no API):
+    # confident fields re-rank the candidate pool by attribute agreement.
     query_tags = None
-    if classify_future is not None:
+    if config.LOCAL_ATTRS:
         try:
-            query_tags = classify_future.result(timeout=20)
+            from . import local_attrs
+            detected = local_attrs.detect_attributes(vecs[0])
+            query_tags = {k: v for k, v in detected.items() if not k.startswith("_")} or None
         except Exception as e:
-            log.warning("query classification skipped: %s", e)
+            log.warning("local attribute detection skipped: %s", e)
 
     if query_tags:
-        # Wider candidate pool, then blend in attribute agreement.
-        results = search.search_by_embedding(vec, flt, top_k=36)
+        results = search.search_by_embedding(vecs, flt, top_k=36)
         results = search.rerank_with_query_tags(results, query_tags,
                                                 config.QUERY_RERANK_WEIGHT)
     else:
-        results = search.search_by_embedding(vec, flt)
+        results = search.search_by_embedding(vecs, flt)
 
     # Query log: keep the cleaned query image + top result for later tuning.
     config.QUERIES_DIR.mkdir(parents=True, exist_ok=True)
@@ -118,7 +118,8 @@ async def search_image(file: UploadFile = File(...),
     preview = base64.standard_b64encode(buf.getvalue()).decode()
     return {"results": results,
             "query_preview": f"data:image/png;base64,{preview}",
-            "query_tags": query_tags}
+            "query_tags": query_tags,
+            "usage": None}  # image search is fully local — zero tokens, always
 
 
 @app.get("/api/sku/{sku}")
@@ -148,7 +149,8 @@ def admin_status():
     return {**db.stats(),
             "classify_enabled": config.CLASSIFY_ENABLED and bool(config.ANTHROPIC_API_KEY),
             "recent": worker.RECENT[:20],
-            "failed": failed[:20]}
+            "failed": failed[:20],
+            "api_usage": db.usage_stats()}
 
 
 @app.post("/api/admin/classify")

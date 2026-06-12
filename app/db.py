@@ -33,6 +33,17 @@ CREATE TABLE IF NOT EXISTS query_log (
     query_image_path TEXT,
     top_skus_json    TEXT
 );
+CREATE TABLE IF NOT EXISTS api_usage (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts            TEXT NOT NULL,
+    kind          TEXT NOT NULL,        -- query_classify | sku_classify
+    ref           TEXT,                 -- sku for sku_classify; null for queries
+    model         TEXT NOT NULL,
+    input_tokens  INTEGER NOT NULL,
+    output_tokens INTEGER NOT NULL,
+    cache_read_tokens     INTEGER NOT NULL DEFAULT 0,
+    cache_creation_tokens INTEGER NOT NULL DEFAULT 0
+);
 """
 
 
@@ -148,6 +159,50 @@ def log_query(query_image_path: str | None, top_skus: list[dict]) -> None:
             "INSERT INTO query_log (ts, query_image_path, top_skus_json) VALUES (?, ?, ?)",
             (now_iso(), query_image_path, json.dumps(top_skus)),
         )
+
+
+def log_api_usage(kind: str, ref: str | None, model: str, usage: dict) -> None:
+    with _lock, connect() as conn:
+        conn.execute(
+            "INSERT INTO api_usage (ts, kind, ref, model, input_tokens, output_tokens,"
+            " cache_read_tokens, cache_creation_tokens) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (now_iso(), kind, ref, model,
+             int(usage.get("input_tokens", 0)), int(usage.get("output_tokens", 0)),
+             int(usage.get("cache_read_tokens", 0)), int(usage.get("cache_creation_tokens", 0))),
+        )
+
+
+def estimate_cost_usd(input_tokens: int, output_tokens: int) -> float:
+    from . import config
+    return (input_tokens * config.PRICE_IN_PER_MTOK
+            + output_tokens * config.PRICE_OUT_PER_MTOK) / 1_000_000
+
+
+def usage_stats() -> dict:
+    """API token usage totals, overall and for the current UTC day, per kind."""
+    today = now_iso()[:10]
+    out = {"total": {}, "today": {}, "by_kind": {}}
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) calls, COALESCE(SUM(input_tokens),0) tin,"
+            " COALESCE(SUM(output_tokens),0) tout FROM api_usage").fetchone()
+        out["total"] = {"calls": row["calls"], "input_tokens": row["tin"],
+                        "output_tokens": row["tout"],
+                        "estimated_cost_usd": round(estimate_cost_usd(row["tin"], row["tout"]), 4)}
+        row = conn.execute(
+            "SELECT COUNT(*) calls, COALESCE(SUM(input_tokens),0) tin,"
+            " COALESCE(SUM(output_tokens),0) tout FROM api_usage WHERE ts LIKE ?",
+            (today + "%",)).fetchone()
+        out["today"] = {"calls": row["calls"], "input_tokens": row["tin"],
+                        "output_tokens": row["tout"],
+                        "estimated_cost_usd": round(estimate_cost_usd(row["tin"], row["tout"]), 4)}
+        for r in conn.execute(
+                "SELECT kind, COUNT(*) calls, COALESCE(SUM(input_tokens),0) tin,"
+                " COALESCE(SUM(output_tokens),0) tout FROM api_usage GROUP BY kind"):
+            out["by_kind"][r["kind"]] = {
+                "calls": r["calls"], "input_tokens": r["tin"], "output_tokens": r["tout"],
+                "estimated_cost_usd": round(estimate_cost_usd(r["tin"], r["tout"]), 4)}
+    return out
 
 
 def stats() -> dict:

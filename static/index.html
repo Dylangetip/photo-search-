@@ -338,7 +338,8 @@ async function runImageSearch(file) {
     state.results = data.results;
     state.queryPreview = data.query_preview;
     state.queryTags = data.query_tags || null;
-  } catch (e) { state.results = []; state.queryPreview = null; state.queryTags = null; console.error(e); }
+    state.queryUsage = data.usage || null;
+  } catch (e) { state.results = []; state.queryPreview = null; state.queryTags = null; state.queryUsage = null; console.error(e); }
   state.view = "results";
   render();
 }
@@ -413,12 +414,15 @@ function resultsHtml() {
   let strip = "";
   if (isImage && state.queryPreview) {
     const qChips = state.queryTags ? chipsHtml(state.queryTags, 6) : "";
+    const u = state.queryUsage;
+    const usageStr = u ? ` · ${(u.input_tokens + u.output_tokens).toLocaleString()} tokens ($${u.estimated_cost_usd.toFixed(4)})` : "";
     strip = `<div class="query-strip">
       <span class="qs-thumb"><img src="${state.queryThumb ? esc(state.queryThumb) : ""}" alt="original"></span>
       <span class="qs-arrow">→</span>
       <span class="qs-thumb"><img src="${esc(state.queryPreview)}" alt="cleaned"></span>
       <span class="qs-caption">Photo cleaned for matching${qChips ? " · detected:" : ""}</span>
       ${qChips}
+      ${usageStr ? `<span class="qs-caption" style="margin-left:auto">${esc(usageStr.slice(3))}</span>` : ""}
     </div>`;
   }
   if (!state.results.length) {
@@ -461,6 +465,24 @@ function detailHtml() {
     </div>
   </div>`;
 }
+function usagePanelHtml(u) {
+  if (!u || !u.total) return "";
+  const fmt = (x) => (x || 0).toLocaleString();
+  const cost = (x) => "$" + (x || 0).toFixed(2);
+  const kinds = u.by_kind || {};
+  const sku = kinds.sku_classify || {};
+  return `<div class="panel pricing-card">
+    <span class="section-label">API usage (catalog tagging only — image search runs 100% locally, $0.00 per search)</span>
+    <div class="stat-tiles">
+      <div class="stat-tile"><span class="stat-num">${fmt(u.total.calls)}</span><span class="stat-label">API calls total</span></div>
+      <div class="stat-tile"><span class="stat-num">${fmt(u.total.input_tokens + u.total.output_tokens)}</span><span class="stat-label">Tokens total</span></div>
+      <div class="stat-tile"><span class="stat-num">${cost(u.total.estimated_cost_usd)}</span><span class="stat-label">Est. cost total</span></div>
+      <div class="stat-tile"><span class="stat-num">${cost(u.today.estimated_cost_usd)}</span><span class="stat-label">Est. cost today</span></div>
+    </div>
+    ${sku.calls ? `<p class="panel-explainer" style="margin-top:12px">Ring tagging: ${fmt(sku.calls)} calls · ${fmt(sku.input_tokens)} in / ${fmt(sku.output_tokens)} out tokens (~${cost(sku.estimated_cost_usd / sku.calls)} per ring, one-time).</p>` : ""}
+  </div>`;
+}
+
 function adminHtml() {
   const s = state.admin || {};
   const recent = s.recent || [];
@@ -495,6 +517,7 @@ function adminHtml() {
         </div>
       </div>
     </div>
+    ${usagePanelHtml(s.api_usage)}
     <div class="panel pricing-card">
       <span class="section-label">Pricing</span>
       <div class="csv-dropzone" id="csvZone">

@@ -79,6 +79,10 @@ backup. Restore = put it back and `docker compose up -d`.
 | `SKU_REGEX` | `^([A-Za-z0-9-]+)` | Capture group 1 = SKU, applied to the filename stem. **Confirm with real filenames.** |
 | `INBOX_POLL_SECONDS` | `15` | Inbox scan interval. |
 | `CLASSIFY_ENABLED` | `true` | `false` → embeddings-only; classification stays queued. |
+| `LOCAL_ATTRS` | `true` | Local zero-shot attribute read on query photos (CLIP text prompts — no API). |
+| `QUERY_RERANK_WEIGHT` | `0.25` | Strength of the bonus-only attribute re-rank on image search. |
+| `SHEET_AR_MIN/MAX` | `1.5/1.9` | Aspect-ratio window for 4-up sheet detection. |
+| `PRICE_IN_PER_MTOK` / `PRICE_OUT_PER_MTOK` | `3.0` / `15.0` | $/M tokens for the admin cost estimate (catalog tagging only). |
 
 > **⚠ Confirm before bulk ingestion:** the default `SKU_REGEX` grabs the leading
 > run of letters/digits/dashes — `SW-2841_beauty.png` → `SW-2841`, but
@@ -103,6 +107,14 @@ backup. Restore = put it back and `docker compose up -d`.
 ## Architecture
 
 - **One container**: FastAPI (uvicorn) + a background ingestion thread.
+- **Image search is 100% local — zero API tokens, ever.** Like a reverse image
+  search: rembg → white background → CLIP embedding (plus a tighter center crop
+  so small-in-frame rings on fingers still match), brute-force cosine against
+  all catalog views. The query's coarse attributes (stone shape, metal,
+  setting) are also read locally — zero-shot, by comparing the image embedding
+  against CLIP *text* prompts — and confident detections give agreeing SKUs a
+  bonus-only re-rank boost (never penalizing a strong visual match). The admin
+  page shows API spend; image searches contribute $0.00 by construction.
 - **Embeddings**: `open_clip` ViT-B-32 (`laion2b_s34b_b79k`), CPU, L2-normalized,
   stored as float32 BLOBs in SQLite. Brute-force numpy cosine — correct and fast
   at ~1k SKUs / ~5k views; no vector DB.

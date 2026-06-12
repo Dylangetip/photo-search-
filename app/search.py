@@ -81,11 +81,14 @@ def _build_results(best: dict, filters: dict, top_k: int) -> list[dict]:
     return out
 
 
-def search_by_embedding(query_vec: np.ndarray, filters: dict, top_k: int = 12) -> list[dict]:
+def search_by_embedding(query_vecs: np.ndarray, filters: dict, top_k: int = 12) -> list[dict]:
+    """query_vecs: one [d] vector or several [n, d] (multi-crop) — scored as the
+    best match across crops. All vectors are L2-normalized, so dot = cosine."""
     mat, meta = _matrix()
     if mat.size == 0:
         return []
-    scores = mat @ query_vec.astype(np.float32)  # all vectors are L2-normalized -> cosine
+    vecs = np.atleast_2d(np.asarray(query_vecs, dtype=np.float32))
+    scores = (mat @ vecs.T).max(axis=1)
     return _build_results(_best_per_sku(scores, meta), filters, top_k)
 
 
@@ -113,12 +116,16 @@ def attribute_agreement(query_tags: dict, tags: dict) -> float | None:
 
 def rerank_with_query_tags(results: list[dict], query_tags: dict,
                            weight: float, top_k: int = 12) -> list[dict]:
-    """Blend CLIP cosine with attribute agreement and re-sort.
-    SKUs without tags keep their cosine score unchanged (never penalized)."""
+    """Boost results whose tags agree with the query's detected attributes.
+
+    Bonus-only: score' = cos + weight * agree * (1 - cos). Agreement lifts a
+    result toward 1.0; disagreement and missing tags change nothing — so a
+    noisy zero-shot read can reorder close calls but can never bury a strong
+    visual match (an exact render stays at ~1.0)."""
     for r in results:
         agree = attribute_agreement(query_tags, r.get("tags") or {})
         if agree is not None:
-            r["score"] = round((1.0 - weight) * r["score"] + weight * agree, 4)
+            r["score"] = round(r["score"] + weight * agree * (1.0 - r["score"]), 4)
             r["attr_match"] = round(agree, 2)
     results.sort(key=lambda r: r["score"], reverse=True)
     return results[:top_k]
