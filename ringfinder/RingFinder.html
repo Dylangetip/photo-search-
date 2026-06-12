@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RingFinder — Sierra West Jewelers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ivory: #FAF8F4;
+    --card: #FFFFFF;
+    --ink: #1C1A17;
+    --graphite: #6E675C;
+    --champagne: #B08D4F;
+    --hairline: #E8E2D8;
+    --velvet: #2E2620;
+    --tray: #F4F0E8;
+    --display: "Cormorant Garamond", Georgia, serif;
+    --body: "Inter", "Helvetica Neue", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--ivory);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; font-size: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+  button:focus-visible, input:focus-visible, [role="button"]:focus-visible {
+    outline: 2px solid var(--champagne); outline-offset: 2px; border-radius: 4px;
+  }
+
+  .content { max-width: 1200px; margin: 0 auto; padding: 0 28px; }
+
+  /* ============ Top bar ============ */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(250, 248, 244, 0.94);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .topbar-inner {
+    max-width: 1200px; margin: 0 auto; padding: 0 28px;
+    height: 64px;
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px;
+  }
+  .wordmark {
+    justify-self: start;
+    font-family: var(--display); font-weight: 600; font-size: 22px;
+    letter-spacing: -0.01em; color: var(--ink);
+  }
+  .search-cluster { display: flex; align-items: center; gap: 8px; }
+  .search-form {
+    display: flex; align-items: center; gap: 8px;
+    width: min(420px, 44vw); height: 40px; padding: 0 14px;
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 10px;
+    color: var(--graphite);
+    transition: border-color 150ms ease-out;
+  }
+  .search-form:focus-within { border-color: var(--champagne); }
+  .search-input {
+    flex: 1; border: none; background: none; outline: none;
+    font-family: var(--body); font-size: 15px; color: var(--ink); min-width: 0;
+  }
+  .search-input::placeholder { color: var(--graphite); opacity: 0.7; }
+  .upload-btn {
+    display: flex; align-items: center; gap: 7px;
+    height: 40px; padding: 0 14px;
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 10px;
+    color: var(--graphite); font-size: 13px; font-weight: 500;
+    transition: border-color 150ms ease-out, color 150ms ease-out;
+  }
+  .upload-btn:hover { border-color: var(--champagne); color: var(--ink); }
+  .image-query {
+    display: flex; align-items: center; gap: 9px;
+    width: min(420px, 44vw); height: 40px; padding: 0 8px 0 6px;
+    background: var(--card); border: 1px solid var(--champagne); border-radius: 10px;
+  }
+  .iq-thumb {
+    width: 28px; height: 28px; border-radius: 6px; overflow: hidden; flex: none;
+    display: grid; place-items: center; border: 1px solid var(--hairline); background: #fff;
+  }
+  .iq-label { flex: 1; font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--graphite); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .iq-clear { font-size: 17px; color: var(--graphite); padding: 2px 7px; border-radius: 6px; line-height: 1; }
+  .iq-clear:hover { color: var(--ink); background: var(--ivory); }
+  .topbar-right { justify-self: end; display: flex; align-items: center; gap: 14px; }
+  .status {
+    display: flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--graphite); white-space: nowrap;
+  }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--champagne); }
+  .gear-btn {
+    display: grid; place-items: center; width: 34px; height: 34px;
+    border-radius: 8px; color: var(--graphite);
+    transition: color 150ms ease-out, background 150ms ease-out;
+  }
+  .gear-btn:hover { color: var(--ink); background: rgba(28, 26, 23, 0.05); }
+  @media (max-width: 900px) { .status { display: none; } }
+
+  /* ============ Filter row ============ */
+  .filter-row { display: flex; gap: 10px; padding: 18px 0 6px; }
+  .pill-wrap { position: relative; }
+  .pill {
+    display: flex; align-items: center; gap: 8px;
+    height: 34px; padding: 0 14px;
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 999px;
+    font-size: 13px; font-weight: 500; color: var(--graphite);
+    transition: border-color 150ms ease-out, background 150ms ease-out, color 150ms ease-out;
+  }
+  .pill:hover { border-color: var(--champagne); color: var(--ink); }
+  .pill.active { background: var(--champagne); border-color: var(--champagne); color: #FFFDF8; }
+  .pill.quiet { background: none; border-color: transparent; font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; }
+  .pill.quiet:hover { color: var(--ink); }
+  .pill .chev { opacity: 0.7; }
+  .pill-menu {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 60;
+    min-width: 168px; padding: 6px;
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 12px;
+    box-shadow: 0 10px 28px rgba(28, 26, 23, 0.10), 0 2px 6px rgba(28, 26, 23, 0.05);
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .pill-wrap:last-child .pill-menu { left: auto; right: 0; }
+  .pill-option {
+    text-align: left; padding: 8px 12px; border-radius: 8px;
+    font-size: 13.5px; color: var(--ink);
+  }
+  .pill-option:hover { background: var(--ivory); }
+  .pill-option.sel { color: var(--champagne); font-weight: 600; }
+
+  /* ============ The tray ============ */
+  .tray {
+    margin: 14px 0 48px;
+    background: var(--tray);
+    border: 1px solid var(--hairline);
+    border-radius: 16px;
+    box-shadow: inset 0 2px 6px rgba(28, 26, 23, 0.055), inset 0 1px 0 rgba(28, 26, 23, 0.04);
+    padding: 26px;
+  }
+
+  .results-line {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 2px 4px 16px;
+  }
+  .results-count {
+    font-family: var(--mono); font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.09em; color: var(--graphite);
+  }
+  .results-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  }
+  @media (max-width: 1080px) { .results-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 840px)  { .results-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ============ Result card ============ */
+  .ring-card {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(28, 26, 23, 0.04);
+    transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+    animation: cardIn 200ms ease-out backwards;
+  }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  body[data-motion="off"] .ring-card { animation: none; }
+  @media (prefers-reduced-motion: reduce) { .ring-card { animation: none; } }
+
+  body[data-motion="on"] .ring-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(28, 26, 23, 0.12), 0 3px 8px rgba(28, 26, 23, 0.06);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body[data-motion="on"] .ring-card:hover { transform: none; }
+  }
+  .ring-card.top-match { border-color: var(--champagne); }
+
+  .card-img {
+    position: relative; aspect-ratio: 1 / 1;
+    background: #FFFFFF; border-bottom: 1px solid var(--hairline);
+    display: grid; place-items: center;
+  }
+  .card-img svg { width: 78%; height: 78%; }
+  .view-affordance {
+    position: absolute; bottom: 10px; right: 10px;
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--champagne);
+    opacity: 0; transition: opacity 150ms ease-out;
+  }
+  .ring-card:hover .view-affordance { opacity: 1; }
+
+  .card-meta { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 5px; }
+  .card-sku {
+    font-family: var(--mono); font-size: 11.5px; text-transform: uppercase;
+    letter-spacing: 0.09em; color: var(--graphite);
+  }
+  .card-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .card-name {
+    font-family: var(--display); font-weight: 600; font-size: 19px; letter-spacing: -0.01em;
+    color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .card-price { font-family: var(--mono); font-size: 13px; color: var(--ink); flex: none; }
+  .ring-card.small .card-name { font-size: 16px; }
+  .ring-card.small .card-meta { padding: 10px 12px 12px; gap: 3px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+  .chip {
+    display: inline-flex; align-items: center;
+    height: 22px; padding: 0 9px;
+    border: 1px solid var(--hairline); border-radius: 999px;
+    font-size: 11.5px; color: var(--graphite); background: none; white-space: nowrap;
+  }
+  .chip.more { border-style: dashed; }
+  .chip.clickable { cursor: pointer; transition: border-color 150ms ease-out, color 150ms ease-out; }
+  .chip.clickable:hover { border-color: var(--champagne); color: var(--champagne); }
+
+  /* ============ Hallmark stamp ============ */
+  .hallmark {
+    position: absolute; top: 10px; right: 10px;
+    min-width: 32px; height: 32px; padding: 0 5px;
+    display: grid; place-items: center;
+    border-radius: 8px;
+    font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: 0.02em;
+  }
+  .hallmark.filled {
+    color: #FFFDF8;
+    background: linear-gradient(180deg, color-mix(in oklab, var(--champagne), white 16%), var(--champagne) 60%, color-mix(in oklab, var(--champagne), black 8%));
+    border: 1px solid color-mix(in oklab, var(--champagne), black 14%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 rgba(0, 0, 0, 0.10), 0 1px 2px rgba(28, 26, 23, 0.18);
+  }
+  .hallmark.engraved {
+    color: var(--champagne);
+    background: var(--ivory);
+    border: 1px solid color-mix(in oklab, var(--champagne), white 35%);
+    box-shadow: inset 0 1.5px 3px rgba(28, 26, 23, 0.14), inset 0 -1px 0 rgba(255, 255, 255, 0.8);
+  }
+  .ring-card.small .hallmark { top: 7px; right: 7px; min-width: 27px; height: 27px; font-size: 11.5px; border-radius: 7px; }
+
+  /* ============ Home empty state ============ */
+  .empty-home {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    padding: 56px 24px 64px;
+  }
+  .empty-title {
+    font-family: var(--display); font-weight: 600; font-size: 44px; letter-spacing: -0.015em;
+    margin: 0 0 8px; color: var(--ink);
+  }
+  .empty-sub { margin: 0 0 36px; color: var(--graphite); font-size: 15px; }
+  .dropzone {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    width: min(560px, 100%); padding: 44px 32px;
+    border: 1.5px dashed color-mix(in oklab, var(--champagne), white 22%);
+    border-radius: 14px; background: rgba(255, 255, 255, 0.55);
+    color: var(--champagne); cursor: pointer;
+    transition: border-color 150ms ease-out, background 150ms ease-out;
+  }
+  .dropzone:hover, .dropzone.drag { border-color: var(--champagne); background: rgba(255, 255, 255, 0.9); }
+  .dz-icon { color: var(--champagne); }
+  .dz-line { font-size: 16px; font-weight: 500; color: var(--ink); }
+  .dz-sub { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); }
+
+  /* ============ Matching progress ============ */
+  .matching {
+    display: flex; flex-direction: column; align-items: center; gap: 22px;
+    padding: 110px 24px 130px;
+  }
+  .shimmer-ring {
+    position: relative; display: grid; place-items: center;
+    width: 92px; height: 92px; border-radius: 50%;
+    color: var(--champagne); overflow: hidden;
+  }
+  .shimmer-ring::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(105deg, transparent 35%, rgba(176, 141, 79, 0.28) 50%, transparent 65%);
+    transform: translateX(-100%);
+    animation: sweep 1.5s ease-in-out infinite;
+  }
+  @keyframes sweep { to { transform: translateX(100%); } }
+  @media (prefers-reduced-motion: reduce) { .shimmer-ring::after { animation: none; } }
+  body[data-motion="off"] .shimmer-ring::after { animation: none; }
+  .matching-text {
+    font-family: var(--mono); font-size: 13px; text-transform: uppercase;
+    letter-spacing: 0.11em; color: var(--graphite);
+  }
+
+  /* ============ Query strip ============ */
+  .query-strip {
+    display: flex; align-items: center; gap: 16px;
+    margin-top: 14px; padding: 12px 16px;
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 12px;
+  }
+  .photo-ph {
+    border-radius: 8px; overflow: hidden; flex: none;
+    background: linear-gradient(140deg, #E9CDA9, #D2A77B 55%, #BE8E68);
+    display: grid; place-items: center;
+  }
+  .qs-arrow { color: var(--graphite); font-size: 16px; }
+  .qs-clean {
+    width: 64px; height: 64px; flex: none;
+    display: grid; place-items: center;
+    background: #FFFFFF; border: 1px solid var(--hairline); border-radius: 8px;
+  }
+  .query-strip .photo-ph { width: 64px; height: 64px; }
+  .qs-caption {
+    font-family: var(--mono); font-size: 11.5px; text-transform: uppercase;
+    letter-spacing: 0.09em; color: var(--graphite);
+  }
+
+  /* ============ Empty-but-filtered ============ */
+  .empty-filtered {
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    padding: 90px 24px 100px; text-align: center;
+  }
+  .ef-title { font-family: var(--display); font-weight: 600; font-size: 28px; color: var(--ink); }
+  .text-btn {
+    font-size: 13.5px; font-weight: 500; color: var(--graphite);
+    text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--hairline);
+    transition: color 150ms ease-out;
+  }
+  .text-btn:hover { color: var(--champagne); text-decoration-color: var(--champagne); }
+  .text-btn.accent { color: var(--champagne); text-decoration-color: color-mix(in oklab, var(--champagne), white 40%); }
+  .text-btn:disabled { cursor: default; opacity: 0.7; }
+
+  /* ============ Detail ============ */
+  .detail { padding: 22px 0 48px; }
+  .back-link {
+    font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--graphite); transition: color 150ms ease-out;
+  }
+  .back-link:hover { color: var(--ink); }
+  .detail-main {
+    display: grid; grid-template-columns: 60fr 40fr; gap: 36px;
+    margin-top: 18px;
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 16px;
+    box-shadow: 0 2px 10px rgba(28, 26, 23, 0.04);
+    padding: 32px;
+  }
+  @media (max-width: 920px) { .detail-main { grid-template-columns: 1fr; } }
+  .viewer-col { min-width: 0; }
+  .viewer {
+    display: grid; place-items: center; aspect-ratio: 1 / 1;
+    background: #FFFFFF; border: 1px solid var(--hairline); border-radius: 12px;
+  }
+  .viewer svg { width: 82%; height: 82%; }
+  .thumb-rail { display: flex; gap: 10px; margin-top: 12px; }
+  .thumb {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    padding: 7px 7px 6px; border-radius: 10px;
+    border: 1px solid var(--hairline); background: #FFFFFF;
+    transition: border-color 150ms ease-out;
+  }
+  .thumb:hover { border-color: color-mix(in oklab, var(--champagne), white 35%); }
+  .thumb-label {
+    font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--graphite); padding-bottom: 3px; border-bottom: 2px solid transparent;
+  }
+  .thumb.active .thumb-label { color: var(--champagne); border-bottom-color: var(--champagne); }
+
+  .info-col { display: flex; flex-direction: column; min-width: 0; }
+  .d-sku { font-family: var(--mono); font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--graphite); }
+  .d-name { font-family: var(--display); font-weight: 600; font-size: 44px; letter-spacing: -0.015em; margin: 4px 0 2px; line-height: 1.05; }
+  .d-price { font-family: var(--mono); font-size: 18px; color: var(--ink); margin-bottom: 22px; }
+  .specs { border-top: 1px solid var(--hairline); margin-bottom: 20px; }
+  .spec-row {
+    display: grid; grid-template-columns: 140px 1fr; gap: 12px;
+    padding: 9px 0; border-bottom: 1px solid var(--hairline);
+  }
+  .spec-k { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--graphite); padding-top: 2px; }
+  .spec-v { font-size: 14.5px; color: var(--ink); }
+  .d-tags { margin-bottom: 26px; }
+  .primary-btn {
+    width: 100%; height: 48px; border-radius: 10px;
+    background: linear-gradient(180deg, color-mix(in oklab, var(--champagne), white 10%), var(--champagne));
+    border: 1px solid color-mix(in oklab, var(--champagne), black 12%);
+    color: #FFFDF8; font-size: 15px; font-weight: 600;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 3px rgba(28, 26, 23, 0.12);
+    transition: filter 150ms ease-out, transform 150ms ease-out;
+  }
+  .primary-btn:hover { filter: brightness(1.05); }
+  .primary-btn:active { transform: translateY(1px); }
+  .quiet-links { display: flex; align-items: center; gap: 10px; justify-content: center; margin-top: 14px; }
+  .dot-sep { color: var(--hairline); }
+
+  .similar-section { margin-top: 34px; }
+  .section-label {
+    display: block;
+    font-family: var(--mono); font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--graphite); margin-bottom: 12px;
+  }
+  .similar-row {
+    display: grid; grid-auto-flow: column; grid-auto-columns: 190px;
+    gap: 14px; overflow-x: auto; padding: 4px 4px 14px;
+  }
+
+  /* ============ Admin ============ */
+  .admin { padding: 22px 0 48px; }
+  .admin-head { display: flex; align-items: baseline; gap: 18px; margin-bottom: 20px; }
+  .admin-title { font-family: var(--display); font-weight: 600; font-size: 28px; margin: 0; letter-spacing: -0.01em; }
+  .stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  @media (max-width: 840px) { .stat-tiles { grid-template-columns: repeat(2, 1fr); } }
+  .stat-tile {
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 12px;
+    padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 4px;
+    box-shadow: 0 1px 2px rgba(28, 26, 23, 0.04);
+  }
+  .stat-num { font-family: var(--mono); font-size: 28px; font-weight: 500; color: var(--ink); }
+  .stat-label { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--graphite); }
+
+  .admin-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+  @media (max-width: 920px) { .admin-cols { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 12px;
+    padding: 20px; box-shadow: 0 1px 2px rgba(28, 26, 23, 0.04);
+  }
+  .panel-explainer { margin: 0 0 14px; font-size: 13.5px; color: var(--graphite); }
+
+  .inbox-list { display: flex; flex-direction: column; }
+  .inbox-row {
+    display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 14px;
+    padding: 9px 2px; border-bottom: 1px solid var(--hairline);
+    position: relative; overflow: hidden;
+  }
+  .inbox-row:last-child { border-bottom: none; }
+  .inbox-file { font-family: var(--mono); font-size: 12.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .inbox-sku { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--graphite); }
+  .inbox-check { color: var(--champagne); font-size: 14px; }
+  .inbox-status { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); }
+  .inbox-time { font-family: var(--mono); font-size: 11.5px; color: var(--graphite); }
+  .inbox-row.processing::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(105deg, transparent 35%, rgba(176, 141, 79, 0.12) 50%, transparent 65%);
+    transform: translateX(-100%);
+    animation: sweep 1.8s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) { .inbox-row.processing::after { animation: none; } }
+  body[data-motion="off"] .inbox-row.processing::after { animation: none; }
+
+  .failed-list { display: flex; flex-direction: column; }
+  .failed-row {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+    padding: 11px 2px; border-bottom: 1px solid var(--hairline);
+  }
+  .failed-file { font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
+  .failed-reason { font-size: 13px; color: var(--graphite); }
+  .failed-row .text-btn { font-size: 12.5px; margin-top: 2px; }
+  .tags-pending-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    padding: 14px 2px 4px;
+  }
+  .tp-label { font-size: 13.5px; color: var(--ink); font-weight: 500; }
+
+  .pricing-card { margin-top: 14px; }
+  .csv-dropzone {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    padding: 26px; border: 1.5px dashed var(--hairline); border-radius: 10px;
+    cursor: pointer; transition: border-color 150ms ease-out;
+  }
+  .csv-dropzone:hover { border-color: color-mix(in oklab, var(--champagne), white 20%); }
+  .pricing-foot {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    margin-top: 13px;
+  }
+  .pricing-last { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); }
+
+  /* responsiveness for narrow iPad */
+  @media (max-width: 840px) {
+    .topbar-inner { grid-template-columns: auto 1fr auto; }
+    .search-form, .image-query { width: 100%; }
+  }
+</style>
+</head>
+<body data-motion="on">
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" data-presets="react">
+/* =====================================================================
+   RingFinder — single-file build of the Sierra West Jewelers visual
+   search prototype. Data, components, screens, and app are inlined so
+   the page runs standalone from any static host (or file://).
+   ===================================================================== */
+
+/* ============ Sample catalog data ============ */
+const RINGS = [
+  {
+    sku: 'SW-2841', name: 'Marquise Heirloom', price: 3450, metal: 'Yellow gold', stone: 'Marquise', setting: 'Cathedral', added: 9,
+    tags: ['marquise', 'milgrain', 'engraved', 'vintage', 'art nouveau', 'cathedral', 'side stones'],
+    specs: { 'Metal': 'Yellow gold', 'Stone': 'Marquise', 'Setting': '6-prong cathedral', 'Head height': '8.30 mm', 'Band width': '1.60 mm', 'Shoulder': '2.80 mm' }
+  },
+  {
+    sku: 'SW-1196', name: 'Aurelia', price: 4120, metal: 'Yellow gold', stone: 'Marquise', setting: 'Halo', added: 4,
+    tags: ['marquise', 'hidden halo', 'pavé', 'delicate'],
+    specs: { 'Metal': 'Yellow gold', 'Stone': 'Marquise', 'Setting': 'Hidden halo', 'Head height': '7.90 mm', 'Band width': '1.40 mm', 'Shoulder': '2.20 mm' }
+  },
+  {
+    sku: 'SW-3307', name: 'Vine & Scroll', price: 2980, metal: 'Yellow gold', stone: 'Oval', setting: 'Solitaire', added: 11,
+    tags: ['oval', 'nature-inspired', 'scrollwork', 'engraved', 'vintage'],
+    specs: { 'Metal': 'Yellow gold', 'Stone': 'Oval', 'Setting': '4-prong solitaire', 'Head height': '7.60 mm', 'Band width': '1.80 mm', 'Shoulder': '2.60 mm' }
+  },
+  {
+    sku: 'SW-2210', name: 'Estate No. 9', price: 5600, metal: 'Two-tone', stone: 'Marquise', setting: 'Bezel', added: 6,
+    tags: ['marquise', 'art deco', 'two-tone', 'baguettes', 'geometric'],
+    specs: { 'Metal': 'Two-tone (yellow / white)', 'Stone': 'Marquise', 'Setting': 'Full bezel', 'Head height': '6.90 mm', 'Band width': '2.10 mm', 'Shoulder': '3.10 mm' }
+  },
+  {
+    sku: 'SW-1879', name: 'Solenne', price: 2340, metal: 'Yellow gold', stone: 'Pear', setting: 'Solitaire', added: 2,
+    tags: ['pear', 'knife-edge', 'solitaire', 'minimal'],
+    specs: { 'Metal': 'Yellow gold', 'Stone': 'Pear', 'Setting': '5-prong solitaire', 'Head height': '7.20 mm', 'Band width': '1.50 mm', 'Shoulder': '1.90 mm' }
+  },
+  {
+    sku: 'SW-3520', name: 'Gilded Trellis', price: 4880, metal: 'Yellow gold', stone: 'Marquise', setting: 'Cathedral', added: 12,
+    tags: ['marquise', 'trellis', 'pavé', 'cathedral', 'side stones'],
+    specs: { 'Metal': 'Yellow gold', 'Stone': 'Marquise', 'Setting': 'Trellis cathedral', 'Head height': '8.60 mm', 'Band width': '1.70 mm', 'Shoulder': '2.90 mm' }
+  },
+  {
+    sku: 'SW-1042', name: 'Beaumont', price: 6200, metal: 'Yellow gold', stone: 'Emerald', setting: 'Bezel', added: 1,
+    tags: ['emerald cut', 'bezel', 'low-profile', 'heirloom'],
+    specs: { 'Metal': 'Yellow gold', 'Stone': 'Emerald cut', 'Setting': 'Full bezel', 'Head height': '5.80 mm', 'Band width': '2.30 mm', 'Shoulder': '2.30 mm' }
+  },
+  {
+    sku: 'SW-2655', name: 'Petite Couronne', price: 3150, metal: 'Yellow gold', stone: 'Marquise', setting: 'Halo', added: 7,
+    tags: ['marquise', 'halo', 'milgrain', 'crown gallery'],
+    specs: { 'Metal': 'Yellow gold', 'Stone': 'Marquise', 'Setting': 'Milgrain halo', 'Head height': '8.10 mm', 'Band width': '1.50 mm', 'Shoulder': '2.40 mm' }
+  },
+  {
+    sku: 'SW-3981', name: 'Meridian', price: 1980, metal: 'Yellow gold', stone: 'Oval', setting: 'Solitaire', added: 13,
+    tags: ['oval', 'east-west', 'sleek', 'modern'],
+    specs: { 'Metal': 'Yellow gold', 'Stone': 'Oval (east-west)', 'Setting': '4-prong solitaire', 'Head height': '5.40 mm', 'Band width': '1.60 mm', 'Shoulder': '1.60 mm' }
+  },
+  {
+    sku: 'SW-2407', name: 'Laurel', price: 3720, metal: 'Yellow gold', stone: 'Marquise', setting: 'Cathedral', added: 8,
+    tags: ['marquise', 'leaf motif', 'milgrain', 'engraved', 'nature-inspired'],
+    specs: { 'Metal': 'Yellow gold', 'Stone': 'Marquise', 'Setting': 'Leaf cathedral', 'Head height': '8.00 mm', 'Band width': '1.70 mm', 'Shoulder': '2.70 mm' }
+  },
+  {
+    sku: 'SW-1730', name: 'Odette', price: 5240, metal: 'Two-tone', stone: 'Oval', setting: 'Halo', added: 5,
+    tags: ['oval', 'filigree', 'vintage', 'halo', 'two-tone'],
+    specs: { 'Metal': 'Two-tone (yellow / white)', 'Stone': 'Oval', 'Setting': 'Filigree halo', 'Head height': '8.40 mm', 'Band width': '1.80 mm', 'Shoulder': '2.80 mm' }
+  },
+  {
+    sku: 'SW-3164', name: 'Ember & Ash', price: 8900, metal: 'Yellow gold', stone: 'Marquise', setting: 'Bezel', added: 10,
+    tags: ['marquise', 'rose-cut', 'bezel', 'hammered', 'one-of-one'],
+    specs: { 'Metal': 'Yellow gold', 'Stone': 'Marquise (rose-cut)', 'Setting': 'Half bezel', 'Head height': '6.40 mm', 'Band width': '2.00 mm', 'Shoulder': '2.50 mm' }
+  }
+];
+
+const IMAGE_SCORES = [96, 93, 91, 88, 86, 84, 81, 79, 77, 74, 72, 69];
+const SIMILAR_SCORES = [94, 91, 89, 87, 85, 82];
+
+const FILTER_OPTIONS = {
+  metal: ['Yellow gold', 'White gold', 'Two-tone'],
+  stone: ['Marquise', 'Oval', 'Pear', 'Emerald'],
+  setting: ['Solitaire', 'Halo', 'Cathedral', 'Bezel']
+};
+
+/* ============ Icons (basic shapes only) ============ */
+
+function SearchIcon() {
+  return (
+    <svg className="ico" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <circle cx="9" cy="9" r="5.5"></circle>
+      <line x1="13.2" y1="13.2" x2="17" y2="17"></line>
+    </svg>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg className="ico" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <rect x="2" y="5.5" width="16" height="11" rx="2.5"></rect>
+      <circle cx="10" cy="11" r="3.2"></circle>
+      <line x1="6" y1="5.5" x2="7.5" y2="3.5"></line>
+      <line x1="14" y1="5.5" x2="12.5" y2="3.5"></line>
+    </svg>
+  );
+}
+
+function SlidersIcon() {
+  return (
+    <svg className="ico" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <line x1="3" y1="6" x2="17" y2="6"></line>
+      <line x1="3" y1="14" x2="17" y2="14"></line>
+      <circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"></circle>
+      <circle cx="13" cy="14" r="2" fill="currentColor" stroke="none"></circle>
+    </svg>
+  );
+}
+
+function ChevronDown() {
+  return (
+    <svg className="ico chev" viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <line x1="2.5" y1="4.5" x2="6" y2="8"></line>
+      <line x1="9.5" y1="4.5" x2="6" y2="8"></line>
+    </svg>
+  );
+}
+
+function RingIcon({ size = 44 }) {
+  return (
+    <svg viewBox="0 0 48 48" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="24" cy="29" r="13"></circle>
+      <rect x="19.5" y="6.5" width="9" height="9" transform="rotate(45 24 11)"></rect>
+    </svg>
+  );
+}
+
+/* ============ Ring renders (line-art placeholders for the 3D renders) ============ */
+
+function Stone({ shape, cx, cy, s, stroke, rotate }) {
+  const k = s || 1;
+  const g = { stroke: stroke, fill: '#FFFFFF', strokeWidth: 1.6 };
+  const tf = rotate ? `rotate(${rotate} ${cx} ${cy})` : undefined;
+  if (shape === 'Marquise') {
+    return (
+      <g {...g} transform={tf}>
+        <ellipse cx={cx} cy={cy} rx={8.5 * k} ry={18 * k}></ellipse>
+        <ellipse cx={cx} cy={cy} rx={4 * k} ry={9.5 * k} fill="none"></ellipse>
+      </g>
+    );
+  }
+  if (shape === 'Oval') {
+    return (
+      <g {...g} transform={tf}>
+        <ellipse cx={cx} cy={cy} rx={11 * k} ry={15 * k}></ellipse>
+        <ellipse cx={cx} cy={cy} rx={5.5 * k} ry={8 * k} fill="none"></ellipse>
+      </g>
+    );
+  }
+  if (shape === 'Pear') {
+    return (
+      <g {...g} transform={tf}>
+        <ellipse cx={cx} cy={cy + 1.5 * k} rx={10 * k} ry={13 * k}></ellipse>
+        <circle cx={cx} cy={cy - 8 * k} r={4.5 * k}></circle>
+        <ellipse cx={cx} cy={cy + 1 * k} rx={5 * k} ry={7 * k} fill="none"></ellipse>
+      </g>
+    );
+  }
+  if (shape === 'Emerald') {
+    return (
+      <g {...g} transform={tf}>
+        <rect x={cx - 10 * k} y={cy - 13 * k} width={20 * k} height={26 * k} rx={2.5 * k}></rect>
+        <rect x={cx - 5.5 * k} y={cy - 7.5 * k} width={11 * k} height={15 * k} rx={1.5 * k} fill="none"></rect>
+      </g>
+    );
+  }
+  return (
+    <g {...g} transform={tf}>
+      <circle cx={cx} cy={cy} r={12 * k}></circle>
+      <circle cx={cx} cy={cy} r={6 * k} fill="none"></circle>
+    </g>
+  );
+}
+
+function RingRender({ ring, view, size }) {
+  const v = (view || 'beauty').toLowerCase();
+  const sz = size || 200;
+  const gold = '#B98F50';
+  const silver = '#A8A29A';
+  const band = ring.metal === 'White gold' ? silver : gold;
+  const cad = v !== 'beauty';
+  const cadStroke = '#8B8478';
+  const stoneStroke = cad ? cadStroke : '#C3BCAE';
+
+  let body = null;
+  if (v === 'top') {
+    body = (
+      <g>
+        <line x1="100" y1="22" x2="100" y2="178" stroke={cadStroke} strokeWidth="0.75" strokeDasharray="3 5" opacity="0.5"></line>
+        <line x1="22" y1="100" x2="178" y2="100" stroke={cadStroke} strokeWidth="0.75" strokeDasharray="3 5" opacity="0.5"></line>
+        <circle cx="100" cy="100" r="56" stroke={cadStroke} strokeWidth="1.6" fill="none"></circle>
+        <circle cx="100" cy="100" r="47" stroke={cadStroke} strokeWidth="1.1" fill="none"></circle>
+        <Stone shape={ring.stone} cx={100} cy={100} s={1.05} stroke={cadStroke}></Stone>
+      </g>
+    );
+  } else if (v === 'perspective') {
+    body = (
+      <g>
+        <g transform="rotate(-14 100 122)">
+          <ellipse cx="100" cy="122" rx="52" ry="30" stroke={cadStroke} strokeWidth="1.6" fill="none"></ellipse>
+          <ellipse cx="100" cy="122" rx="45" ry="24" stroke={cadStroke} strokeWidth="1.1" fill="none"></ellipse>
+        </g>
+        <line x1="92" y1="86" x2="95" y2="74" stroke={cadStroke} strokeWidth="1.3"></line>
+        <line x1="112" y1="83" x2="109" y2="72" stroke={cadStroke} strokeWidth="1.3"></line>
+        <Stone shape={ring.stone} cx={102} cy={56} s={0.95} stroke={cadStroke} rotate={6}></Stone>
+      </g>
+    );
+  } else if (v === 'side') {
+    body = (
+      <g>
+        <ellipse cx="100" cy="126" rx="54" ry="11" stroke={cadStroke} strokeWidth="1.6" fill="none"></ellipse>
+        <line x1="94" y1="116" x2="96" y2="103" stroke={cadStroke} strokeWidth="1.3"></line>
+        <line x1="106" y1="116" x2="104" y2="103" stroke={cadStroke} strokeWidth="1.3"></line>
+        <Stone shape={ring.stone} cx={100} cy={86} s={0.8} stroke={cadStroke}></Stone>
+      </g>
+    );
+  } else if (v === 'back') {
+    body = (
+      <g>
+        <circle cx="100" cy="100" r="52" stroke={cadStroke} strokeWidth="1.6" fill="none"></circle>
+        <circle cx="100" cy="100" r="45" stroke={cadStroke} strokeWidth="1.1" fill="none"></circle>
+        <line x1="92" y1="49" x2="108" y2="49" stroke={cadStroke} strokeWidth="1.3"></line>
+      </g>
+    );
+  } else {
+    // beauty render
+    body = (
+      <g>
+        <ellipse cx="100" cy="174" rx="42" ry="5" fill="rgba(28,26,23,0.06)"></ellipse>
+        <circle cx="100" cy="118" r="49" stroke={band} strokeWidth="7" fill="none"></circle>
+        {ring.metal === 'Two-tone' ? (
+          <circle cx="100" cy="118" r="43" stroke={silver} strokeWidth="3" fill="none"></circle>
+        ) : (
+          <circle cx="100" cy="118" r="46.5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.4" fill="none"></circle>
+        )}
+        <line x1="91" y1="70" x2="93.5" y2="60" stroke={band} strokeWidth="2"></line>
+        <line x1="109" y1="70" x2="106.5" y2="60" stroke={band} strokeWidth="2"></line>
+        <Stone shape={ring.stone} cx={100} cy={46} s={1} stroke={stoneStroke}></Stone>
+      </g>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 200 200" width={sz} height={sz} aria-label={ring.sku + ' render placeholder'}>
+      {body}
+    </svg>
+  );
+}
+
+/* Customer phone-photo placeholder (warm gradient + line ring) */
+function PhotoPlaceholder({ size }) {
+  const sz = size || 96;
+  return (
+    <div className="photo-ph" style={{ width: sz, height: sz }}>
+      <svg viewBox="0 0 96 96" width="100%" height="100%" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="3.5">
+        <circle cx="48" cy="52" r="15"></circle>
+        <circle cx="48" cy="31" r="5" fill="rgba(255,255,255,0.9)" stroke="none"></circle>
+      </svg>
+    </div>
+  );
+}
+
+/* ============ Hallmark match stamp ============ */
+
+function Hallmark({ score, styleName }) {
+  const cls = styleName === 'Engraved' ? 'hallmark engraved' : 'hallmark filled';
+  return <span className={cls} title={score + '% match'}>{score}</span>;
+}
+
+/* ============ Chips ============ */
+
+function TagChips({ tags, max, onTag }) {
+  const m = max == null ? 3 : max;
+  const shown = tags.slice(0, m);
+  const extra = tags.length - shown.length;
+  return (
+    <div className="chips">
+      {shown.map((t) =>
+        onTag ? (
+          <button key={t} className="chip clickable" onClick={(e) => { e.stopPropagation(); onTag(t); }}>{t}</button>
+        ) : (
+          <span key={t} className="chip">{t}</span>
+        )
+      )}
+      {extra > 0 && <span className="chip more">+{extra}</span>}
+    </div>
+  );
+}
+
+/* ============ Result card ============ */
+
+function RingCard({ ring, score, top, onClick, index, stampStyle, small }) {
+  const cls = 'ring-card' + (top ? ' top-match' : '') + (small ? ' small' : '');
+  return (
+    <div className={cls} role="button" tabIndex="0" onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+      style={{ animationDelay: (index || 0) * 30 + 'ms' }}>
+      <div className="card-img">
+        <RingRender ring={ring} size={small ? 124 : 220}></RingRender>
+        {score != null && <Hallmark score={score} styleName={stampStyle}></Hallmark>}
+        {!small && <span className="view-affordance">View</span>}
+      </div>
+      <div className="card-meta">
+        <span className="card-sku">{ring.sku}</span>
+        <div className="card-row">
+          <span className="card-name">{ring.name}</span>
+          <span className="card-price">${ring.price.toLocaleString()}</span>
+        </div>
+        {!small && <TagChips tags={ring.tags} max={3}></TagChips>}
+      </div>
+    </div>
+  );
+}
+
+/* ============ Dropdown pill (filters + sort) ============ */
+
+function FilterPill({ label, value, options, onChange, quiet }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  return (
+    <div className="pill-wrap" ref={ref}>
+      <button className={(quiet ? 'pill quiet' : 'pill') + (value && !quiet ? ' active' : '')} onClick={() => setOpen(!open)}>
+        <span>{value && !quiet ? label + ': ' + value : (quiet ? value : label)}</span>
+        <ChevronDown></ChevronDown>
+      </button>
+      {open && (
+        <div className="pill-menu">
+          {!quiet && (
+            <button className={'pill-option' + (value == null ? ' sel' : '')} onClick={() => { onChange(null); setOpen(false); }}>
+              Any {label.toLowerCase()}
+            </button>
+          )}
+          {options.map((o) => (
+            <button key={o} className={'pill-option' + (o === value ? ' sel' : '')} onClick={() => { onChange(o); setOpen(false); }}>{o}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============ Chrome ============ */
+
+function TopBar({ query, onQueryChange, onSubmit, imageQuery, onClearImage, onUpload, onHome, onAdmin }) {
+  return (
+    <header className="topbar">
+      <div className="topbar-inner">
+        <button className="wordmark" onClick={onHome}>RingFinder</button>
+        <div className="search-cluster">
+          {imageQuery ? (
+            <div className="image-query">
+              <span className="iq-thumb">
+                {imageQuery.type === 'photo'
+                  ? <PhotoPlaceholder size={28}></PhotoPlaceholder>
+                  : <RingRender ring={imageQuery.ring} size={28}></RingRender>}
+              </span>
+              <span className="iq-label">{imageQuery.type === 'photo' ? 'Customer photo' : imageQuery.ring.sku + ' render'}</span>
+              <button className="iq-clear" onClick={onClearImage} aria-label="Clear image query">×</button>
+            </div>
+          ) : (
+            <form className="search-form" onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
+              <SearchIcon></SearchIcon>
+              <input className="search-input" placeholder="Describe a ring…" value={query}
+                onChange={(e) => onQueryChange(e.target.value)} aria-label="Search rings"></input>
+            </form>
+          )}
+          <button className="upload-btn" onClick={onUpload}><CameraIcon></CameraIcon><span>Photo</span></button>
+        </div>
+        <div className="topbar-right">
+          <span className="status"><span className="status-dot"></span>1,042 rings indexed</span>
+          <button className="gear-btn" onClick={onAdmin} aria-label="Admin and status"><SlidersIcon></SlidersIcon></button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function FilterRow({ filters, setFilters }) {
+  const opts = FILTER_OPTIONS;
+  const set = (k) => (v) => setFilters({ ...filters, [k]: v });
+  return (
+    <div className="filter-row">
+      <FilterPill label="Metal" value={filters.metal} options={opts.metal} onChange={set('metal')}></FilterPill>
+      <FilterPill label="Stone shape" value={filters.stone} options={opts.stone} onChange={set('stone')}></FilterPill>
+      <FilterPill label="Setting" value={filters.setting} options={opts.setting} onChange={set('setting')}></FilterPill>
+    </div>
+  );
+}
+
+/* The tray — signature inset surface */
+function Tray({ children }) {
+  return <div className="tray">{children}</div>;
+}
+
+/* Query strip for image searches */
+function QueryStrip({ source }) {
+  const cleaned = source.type === 'render' ? source.ring : RINGS[0];
+  return (
+    <div className="query-strip">
+      {source.type === 'photo' && (
+        <React.Fragment>
+          <PhotoPlaceholder size={64}></PhotoPlaceholder>
+          <span className="qs-arrow">→</span>
+        </React.Fragment>
+      )}
+      <span className="qs-clean"><RingRender ring={cleaned} size={58}></RingRender></span>
+      <span className="qs-caption">
+        {source.type === 'photo' ? 'Photo cleaned for matching' : 'Matching by catalog render · ' + source.ring.sku}
+      </span>
+    </div>
+  );
+}
+
+/* ============ Home / empty state ============ */
+
+function HomeScreen({ onUpload }) {
+  const [drag, setDrag] = React.useState(false);
+  return (
+    <Tray>
+      <div className="empty-home" data-screen-label="Home — empty tray">
+        <h1 className="empty-title">Search by photo or description</h1>
+        <p className="empty-sub">Type what the customer describes, or drop their photo below.</p>
+        <div className={'dropzone' + (drag ? ' drag' : '')}
+          onClick={onUpload}
+          onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={(e) => { e.preventDefault(); setDrag(false); onUpload(); }}>
+          <span className="dz-icon"><RingIcon size={46}></RingIcon></span>
+          <span className="dz-line">Drop a customer photo here</span>
+          <span className="dz-sub">JPG · PNG · HEIC — or click to browse</span>
+        </div>
+      </div>
+    </Tray>
+  );
+}
+
+/* ============ Matching progress (image search in-between state) ============ */
+
+function MatchingScreen({ onDone }) {
+  React.useEffect(() => {
+    const t = setTimeout(onDone, 1800);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <Tray>
+      <div className="matching" data-screen-label="Matching progress">
+        <span className="shimmer-ring"><RingIcon size={56}></RingIcon></span>
+        <span className="matching-text">Matching against 1,042 rings…</span>
+      </div>
+    </Tray>
+  );
+}
+
+/* ============ Results (text + image modes) ============ */
+
+function SortControl({ sort, setSort }) {
+  return (
+    <FilterPill quiet label="Sort" value={sort} options={['Relevance', 'Price', 'Newest']} onChange={(v) => setSort(v || 'Relevance')}></FilterPill>
+  );
+}
+
+function ResultsScreen({ mode, items, source, sort, setSort, onOpen, onClearFilters, stampStyle }) {
+  return (
+    <div data-screen-label={mode === 'image' ? 'Image search results' : 'Text search results'}>
+      {mode === 'image' && source && <QueryStrip source={source}></QueryStrip>}
+      <Tray>
+        {items.length > 0 ? (
+          <React.Fragment>
+            <div className="results-line">
+              <span className="results-count">{items.length} match{items.length === 1 ? '' : 'es'} · sorted by {sort}</span>
+              <SortControl sort={sort} setSort={setSort}></SortControl>
+            </div>
+            <div className="results-grid">
+              {items.map((it, i) => (
+                <RingCard key={it.ring.sku} ring={it.ring} score={it.score} top={it.top} index={i}
+                  stampStyle={stampStyle} onClick={() => onOpen(it.ring)}></RingCard>
+              ))}
+            </div>
+          </React.Fragment>
+        ) : (
+          <div className="empty-filtered">
+            <span className="ef-title">No rings match these filters</span>
+            <button className="text-btn" onClick={onClearFilters}>Clear filters</button>
+          </div>
+        )}
+      </Tray>
+    </div>
+  );
+}
+
+/* ============ Ring detail ============ */
+
+const DETAIL_VIEWS = ['Beauty', 'Top', 'Perspective', 'Back', 'Side'];
+
+function DetailScreen({ ring, onBack, onFindSimilar, onTag, onOpen, stampStyle }) {
+  const [active, setActive] = React.useState('Beauty');
+  const [copied, setCopied] = React.useState(false);
+  React.useEffect(() => { setActive('Beauty'); setCopied(false); }, [ring.sku]);
+
+  const similar = RINGS
+    .filter((r) => r.sku !== ring.sku)
+    .sort((a, b) => {
+      const score = (r) => (r.stone === ring.stone ? 2 : 0) + (r.metal === ring.metal ? 1 : 0);
+      return score(b) - score(a);
+    })
+    .slice(0, 6);
+
+  const copySku = () => {
+    if (navigator.clipboard) navigator.clipboard.writeText(ring.sku).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  };
+
+  return (
+    <div className="detail" data-screen-label={'Ring detail — ' + ring.sku}>
+      <button className="back-link" onClick={onBack}>← Back to results</button>
+      <div className="detail-main">
+        <div className="viewer-col">
+          <div className="viewer">
+            <RingRender ring={ring} view={active.toLowerCase()} size={420}></RingRender>
+          </div>
+          <div className="thumb-rail">
+            {DETAIL_VIEWS.map((v) => (
+              <button key={v} className={'thumb' + (v === active ? ' active' : '')} onClick={() => setActive(v)}>
+                <RingRender ring={ring} view={v.toLowerCase()} size={56}></RingRender>
+                <span className="thumb-label">{v}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="info-col">
+          <span className="d-sku">{ring.sku}</span>
+          <h1 className="d-name">{ring.name}</h1>
+          <span className="d-price">${ring.price.toLocaleString()}</span>
+          <div className="specs">
+            {Object.entries(ring.specs).map(([k, v]) => (
+              <div className="spec-row" key={k}>
+                <span className="spec-k">{k}</span>
+                <span className="spec-v">{v}</span>
+              </div>
+            ))}
+          </div>
+          <div className="d-tags">
+            <TagChips tags={ring.tags} max={99} onTag={onTag}></TagChips>
+          </div>
+          <button className="primary-btn" onClick={onFindSimilar}>Find similar rings</button>
+          <div className="quiet-links">
+            <button className="text-btn" onClick={copySku}>{copied ? 'Copied' : 'Copy SKU'}</button>
+            <span className="dot-sep">·</span>
+            <button className="text-btn">Open in POS</button>
+          </div>
+        </div>
+      </div>
+      <div className="similar-section">
+        <span className="section-label">Similar rings</span>
+        <div className="similar-row">
+          {similar.map((r, i) => (
+            <RingCard small key={r.sku} ring={r} score={SIMILAR_SCORES[i]} index={i}
+              stampStyle={stampStyle} onClick={() => onOpen(r)}></RingCard>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============ Admin / status ============ */
+
+const ADMIN_STATS = [
+  ['Rings indexed', '1,042'],
+  ['Views embedded', '4,873'],
+  ['Tags pending', '17'],
+  ['Failed files', '3']
+];
+
+const ADMIN_INBOX = [
+  { file: 'SW-4103_beauty.png', sku: 'SW-4103', time: '14:33', processing: true },
+  { file: 'SW-4102_top.png', sku: 'SW-4102', time: '14:32' },
+  { file: 'SW-4102_beauty.png', sku: 'SW-4102', time: '14:32' },
+  { file: 'SW-4101_persp.png', sku: 'SW-4101', time: '14:31' },
+  { file: 'SW-4099_side.png', sku: 'SW-4099', time: '14:28' },
+  { file: 'SW-4099_back.png', sku: 'SW-4099', time: '14:28' }
+];
+
+const ADMIN_FAILED = [
+  { file: 'ring_final_v2.png', reason: 'No SKU found in filename. Rename to SW-####_view.png and re-drop.' },
+  { file: 'SW-39__persp.png', reason: 'SKU incomplete — expected the SW-#### pattern.' },
+  { file: 'SW-2841_beauty.tiff', reason: 'Unsupported format. Convert to PNG and re-drop.' }
+];
+
+function AdminScreen({ onBack }) {
+  const [classifying, setClassifying] = React.useState(0); // 0 idle, 1 running, 2 queued
+  const runClassify = () => {
+    setClassifying(1);
+    setTimeout(() => setClassifying(2), 1500);
+  };
+  return (
+    <div className="admin" data-screen-label="Admin status">
+      <div className="admin-head">
+        <button className="back-link" onClick={onBack}>← Back</button>
+        <h1 className="admin-title">Status</h1>
+      </div>
+      <div className="stat-tiles">
+        {ADMIN_STATS.map(([label, num]) => (
+          <div className="stat-tile" key={label}>
+            <span className="stat-num">{num}</span>
+            <span className="stat-label">{label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="admin-cols">
+        <div className="panel">
+          <span className="section-label">Inbox</span>
+          <p className="panel-explainer">Drop render files into the inbox folder on the NAS — they appear here as they're processed.</p>
+          <div className="inbox-list">
+            {ADMIN_INBOX.map((row) => (
+              <div className={'inbox-row' + (row.processing ? ' processing' : '')} key={row.file}>
+                <span className="inbox-file">{row.file}</span>
+                <span className="inbox-sku">{row.sku}</span>
+                {row.processing
+                  ? <span className="inbox-status">processing</span>
+                  : <span className="inbox-check">✓</span>}
+                <span className="inbox-time">{row.time}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="panel">
+          <span className="section-label">Needs attention</span>
+          <div className="failed-list">
+            {ADMIN_FAILED.map((row) => (
+              <div className="failed-row" key={row.file}>
+                <span className="failed-file">{row.file}</span>
+                <span className="failed-reason">{row.reason}</span>
+                <button className="text-btn">View log</button>
+              </div>
+            ))}
+          </div>
+          <div className="tags-pending-row">
+            <span className="tp-label">17 rings awaiting tags</span>
+            <button className="text-btn accent" onClick={runClassify} disabled={classifying === 1}>
+              {classifying === 0 && 'Run classification now'}
+              {classifying === 1 && 'Classifying 17 rings…'}
+              {classifying === 2 && 'Queued ✓'}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="panel pricing-card">
+        <span className="section-label">Pricing</span>
+        <div className="csv-dropzone">
+          <span className="dz-line">Drop a pricing CSV here</span>
+          <span className="dz-sub">CSV with sku, price, name columns</span>
+        </div>
+        <div className="pricing-foot">
+          <span className="pricing-last">Last import May 28 · 987 of 1,042 SKUs matched</span>
+          <button className="text-btn">Unmatched rows</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============ App shell, routing, search state ============ */
+
+const STAMP_STYLE = 'Stamped'; // 'Stamped' (embossed) or 'Engraved' (debossed)
+
+function metalMatches(filterValue, ringMetal) {
+  if (!filterValue) return true;
+  if (filterValue === 'Yellow gold') return ringMetal === 'Yellow gold' || ringMetal === 'Two-tone';
+  if (filterValue === 'White gold') return ringMetal === 'White gold' || ringMetal === 'Two-tone';
+  return ringMetal === filterValue;
+}
+
+function App() {
+  const [view, setView] = React.useState({ name: 'home' });
+  const [query, setQuery] = React.useState('');
+  const [search, setSearch] = React.useState({ mode: null, source: null, tag: null });
+  const [filters, setFilters] = React.useState({ metal: null, stone: null, setting: null });
+  const [sort, setSort] = React.useState('Relevance');
+  const stackRef = React.useRef([]);
+
+  /* ---- navigation with scroll restore ---- */
+  const navigate = (next) => {
+    stackRef.current.push({ view, scroll: window.scrollY });
+    setView(next);
+    requestAnimationFrame(() => window.scrollTo(0, 0));
+  };
+  const goBack = () => {
+    const prev = stackRef.current.pop();
+    if (!prev) { goHome(); return; }
+    setView(prev.view);
+    setTimeout(() => window.scrollTo(0, prev.scroll), 40);
+  };
+  const goHome = () => {
+    stackRef.current = [];
+    setSearch({ mode: null, source: null, tag: null });
+    setQuery('');
+    setFilters({ metal: null, stone: null, setting: null });
+    setSort('Relevance');
+    setView({ name: 'home' });
+    window.scrollTo(0, 0);
+  };
+
+  /* ---- search flows ---- */
+  const submitText = () => {
+    const q = query.trim();
+    if (!q) return;
+    const f = { ...filters };
+    const lower = q.toLowerCase();
+    if (lower.includes('yellow gold')) f.metal = 'Yellow gold';
+    else if (lower.includes('white gold')) f.metal = 'White gold';
+    else if (lower.includes('two-tone') || lower.includes('two tone')) f.metal = 'Two-tone';
+    setFilters(f);
+    setSearch({ mode: 'text', source: null, tag: null });
+    setSort('Relevance');
+    if (view.name !== 'results') navigate({ name: 'results' });
+  };
+
+  const startImageSearch = (source) => {
+    setSearch({ mode: 'image', source, tag: null });
+    setQuery('');
+    setSort('Relevance');
+    navigate({ name: 'matching' });
+  };
+  const finishMatching = () => {
+    // replace matching in place — back from results skips the progress moment
+    setView({ name: 'results' });
+    window.scrollTo(0, 0);
+  };
+
+  const searchByTag = (tag) => {
+    setQuery(tag);
+    setSearch({ mode: 'text', source: null, tag });
+    setSort('Relevance');
+    navigate({ name: 'results' });
+  };
+
+  const clearImage = () => goHome();
+
+  /* ---- result computation ---- */
+  const items = React.useMemo(() => {
+    let list = RINGS.filter((r) =>
+      metalMatches(filters.metal, r.metal) &&
+      (!filters.stone || r.stone === filters.stone) &&
+      (!filters.setting || r.setting === filters.setting)
+    );
+    if (search.tag) list = list.filter((r) => r.tags.includes(search.tag));
+
+    let result;
+    if (search.mode === 'image') {
+      const ref = search.source && search.source.type === 'render' ? search.source.ring : RINGS[0];
+      if (search.source && search.source.type === 'render') list = list.filter((r) => r.sku !== ref.sku);
+      const sim = (r) => (r.stone === ref.stone ? 2 : 0) + (r.metal === ref.metal ? 1 : 0) + (r.sku === ref.sku ? 10 : 0);
+      list = [...list].sort((a, b) => sim(b) - sim(a));
+      result = list.map((r, i) => ({ ring: r, score: IMAGE_SCORES[i] != null ? IMAGE_SCORES[i] : 67 - i, top: i === 0 }));
+    } else {
+      result = list.map((r) => ({ ring: r, score: null, top: false }));
+    }
+    if (sort === 'Price') result = [...result].sort((a, b) => a.ring.price - b.ring.price);
+    if (sort === 'Newest') result = [...result].sort((a, b) => b.ring.added - a.ring.added);
+    return result;
+  }, [filters, search, sort]);
+
+  const detailRing = view.sku ? RINGS.find((r) => r.sku === view.sku) : null;
+  const showFilters = view.name === 'home' || view.name === 'results' || view.name === 'matching';
+
+  return (
+    <React.Fragment>
+      <TopBar
+        query={query}
+        onQueryChange={setQuery}
+        onSubmit={submitText}
+        imageQuery={search.mode === 'image' ? search.source : null}
+        onClearImage={clearImage}
+        onUpload={() => startImageSearch({ type: 'photo' })}
+        onHome={goHome}
+        onAdmin={() => { if (view.name !== 'admin') navigate({ name: 'admin' }); }}>
+      </TopBar>
+
+      {showFilters && <div className="content"><FilterRow filters={filters} setFilters={setFilters}></FilterRow></div>}
+
+      <main className="content">
+        {view.name === 'home' && <HomeScreen onUpload={() => startImageSearch({ type: 'photo' })}></HomeScreen>}
+
+        {view.name === 'matching' && <MatchingScreen onDone={finishMatching}></MatchingScreen>}
+
+        {view.name === 'results' && (
+          <ResultsScreen
+            mode={search.mode}
+            source={search.source}
+            items={items}
+            sort={sort}
+            setSort={setSort}
+            stampStyle={STAMP_STYLE}
+            onOpen={(ring) => navigate({ name: 'detail', sku: ring.sku })}
+            onClearFilters={() => { setFilters({ metal: null, stone: null, setting: null }); setSearch({ ...search, tag: null }); }}>
+          </ResultsScreen>
+        )}
+
+        {view.name === 'detail' && detailRing && (
+          <DetailScreen
+            ring={detailRing}
+            onBack={goBack}
+            onFindSimilar={() => startImageSearch({ type: 'render', ring: detailRing })}
+            onTag={searchByTag}
+            onOpen={(ring) => navigate({ name: 'detail', sku: ring.sku })}
+            stampStyle={STAMP_STYLE}>
+          </DetailScreen>
+        )}
+
+        {view.name === 'admin' && <AdminScreen onBack={goBack}></AdminScreen>}
+      </main>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App></App>);
+</script>
+</body>
+</html>
