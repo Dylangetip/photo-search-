@@ -19,6 +19,12 @@ SKU_REGEX = os.environ.get("SKU_REGEX", r"^([A-Za-z0-9-]+)")
 
 INBOX_POLL_SECONDS = float(os.environ.get("INBOX_POLL_SECONDS", "15"))
 
+# When SKU_REGEX doesn't match a filename, fall back to the sanitized filename
+# stem as the SKU instead of sending the file to failed/. Keeps arbitrarily
+# named CADs (timestamp/IMG exports) in the catalog. Files with no usable
+# characters still fail. A ring folder (folder name = SKU) always overrides.
+SKU_FALLBACK_STEM = os.environ.get("SKU_FALLBACK_STEM", "true").lower() in ("1", "true", "yes")
+
 CLASSIFY_ENABLED = os.environ.get("CLASSIFY_ENABLED", "true").lower() in ("1", "true", "yes")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 CLASSIFY_MODEL = os.environ.get("CLASSIFY_MODEL", "claude-sonnet-4-6")

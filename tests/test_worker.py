@@ -46,8 +46,9 @@ class TestIngestion:
         ingest_all()
         assert len(db.sku_views("SKU123")) == 5
 
-    def test_no_sku_goes_to_failed(self):
-        """Acceptance #3: no SKU match -> failed/ with a .log.txt."""
+    def test_no_sku_goes_to_failed(self, monkeypatch):
+        """Acceptance #3: no SKU match + no fallback -> failed/ with a .log.txt."""
+        monkeypatch.setattr(config, "SKU_FALLBACK_STEM", False)
         drop(make_beauty(), "__bad name__.png")
         ingest_all()
         failed = list(config.FAILED_DIR.glob("*.png"))
@@ -55,6 +56,24 @@ class TestIngestion:
         log = failed[0].with_name(failed[0].name + ".log.txt")
         assert log.exists()
         assert "SKU" in log.read_text()
+
+    def test_arbitrary_filename_falls_back_to_stem(self, monkeypatch):
+        """With the P.O. regex, CADs named with timestamps/IMG still index under
+        their sanitized filenames instead of failing."""
+        monkeypatch.setattr(config, "SKU_REGEX", r"P\.?O\.?\s*#?\s*(\d+)")
+        drop(make_beauty(), "1775936517188.png")
+        drop(make_beauty(700, 700), "IMG_20260604_221800.png")
+        drop(make_sheet(), "Copy of P.O. #140979 - Neil Anderson.png")
+        ingest_all()
+        assert len(db.sku_views("1775936517188")) == 1
+        assert len(db.sku_views("IMG_20260604_221800")) == 1
+        assert len(db.sku_views("140979")) == 4  # P.O. still wins for named files
+        assert not list(config.FAILED_DIR.glob("*.png"))
+
+    def test_empty_stem_still_fails(self):
+        drop(make_beauty(), "###.png")  # nothing usable after sanitizing
+        ingest_all()
+        assert len(list(config.FAILED_DIR.glob("*.png"))) == 1
 
     def test_forced_type_folders(self):
         drop(make_beauty(900, 900), "SKU777_x.png", sub="sheets")  # forced sheet despite AR

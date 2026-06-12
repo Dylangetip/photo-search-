@@ -45,13 +45,18 @@ def process_file(path: Path, forced_type: str | None = None,
     """Ingest one inbox file. forced_type: 'sheet' | 'single' | None (auto-detect).
     sku_override: set when the file came from a ring folder (folder name = SKU),
     which groups any number of files into one ring regardless of filenames."""
+    def _sanitize(s: str) -> str:
+        return re.sub(r"[^A-Za-z0-9_-]+", "-", s).strip("-")
+
     if sku_override:
-        sku = re.sub(r"[^A-Za-z0-9_-]+", "-", sku_override).strip("-")
+        sku = _sanitize(sku_override)
     else:
         sku = pipeline.extract_sku(path.stem)
+        if not sku and config.SKU_FALLBACK_STEM:
+            sku = _sanitize(path.stem)  # arbitrarily-named CAD -> filename as SKU
     if not sku:
         _fail(path, f"No SKU match for regex {config.SKU_REGEX!r} on filename stem {path.stem!r}. "
-                    "Rename the file so it starts with the SKU — or put all of this "
+                    "Rename the file so it contains the SKU — or put all of this "
                     "ring's images in a folder named after the SKU and drop the folder.")
         return
 

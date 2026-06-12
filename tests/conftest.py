@@ -41,10 +41,14 @@ def stub_models(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def fresh_db():
-    config.ensure_dirs()
+    import shutil
+    for d in (config.INBOX_DIR, config.LIBRARY_DIR, config.FAILED_DIR, config.QUERIES_DIR):
+        shutil.rmtree(d, ignore_errors=True)
     if config.DB_PATH.exists():
         config.DB_PATH.unlink()
+    config.ensure_dirs()
     db.init_db()
-    from app import search
+    from app import search, worker
     search._cache.update(sig=None, mat=None, meta=None)
+    worker.RECENT.clear()
     yield
