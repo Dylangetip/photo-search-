@@ -64,6 +64,31 @@ detail view and "Find similar rings".
 "Run classification now", and pricing CSV import (columns: `sku`, optional
 `price`, `name`; unmatched rows are reported, never fatal).
 
+## First load: using your existing folders
+
+If your CADs live in e.g. `C:\Users\<you>\Desktop\ring pics` and your example
+search photos in `...\Desktop\ring requests`:
+
+1. **Catalog** — *copy* (don't move) the contents of `ring pics` into
+   `C:\ringfinder\data\inbox\`. The worker ingests each file and archives it
+   under `data\library\<SKU>\originals\` — your Desktop folder keeps the
+   masters. Before a bulk load, sanity-check detection + SKU extraction:
+
+   ```
+   python tools\check_sheets.py "C:\Users\<you>\Desktop\ring pics"
+   ```
+
+2. **Queries** — `ring requests`-style photos are what staff upload through
+   the web UI. To test the whole folder at once against the running server:
+
+   ```
+   python tools\evaluate.py "C:\Users\<you>\Desktop\ring requests"
+   ```
+
+   Prints the top matches, similarity %, locally-detected attributes, and
+   timing for every photo — image search is fully local, so this costs $0.00
+   no matter how many you run.
+
 ## Backup
 
 Everything lives in one folder: **`data/`** (originals, processed views, the
