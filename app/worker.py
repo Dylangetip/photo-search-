@@ -4,6 +4,7 @@ Run as a background thread inside the API container (started from main.py).
 Correctness over speed — strictly sequential, no parallelism.
 """
 import logging
+import re
 import shutil
 import threading
 import time
@@ -39,12 +40,19 @@ def _fail(path: Path, reason: str) -> None:
     log.warning("failed %s: %s", path.name, reason)
 
 
-def process_file(path: Path, forced_type: str | None = None) -> None:
-    """Ingest one inbox file. forced_type: 'sheet' | 'single' | None (auto-detect)."""
-    sku = pipeline.extract_sku(path.stem)
+def process_file(path: Path, forced_type: str | None = None,
+                 sku_override: str | None = None) -> None:
+    """Ingest one inbox file. forced_type: 'sheet' | 'single' | None (auto-detect).
+    sku_override: set when the file came from a ring folder (folder name = SKU),
+    which groups any number of files into one ring regardless of filenames."""
+    if sku_override:
+        sku = re.sub(r"[^A-Za-z0-9_-]+", "-", sku_override).strip("-")
+    else:
+        sku = pipeline.extract_sku(path.stem)
     if not sku:
         _fail(path, f"No SKU match for regex {config.SKU_REGEX!r} on filename stem {path.stem!r}. "
-                    "Rename the file so it starts with the SKU and re-drop.")
+                    "Rename the file so it starts with the SKU — or put all of this "
+                    "ring's images in a folder named after the SKU and drop the folder.")
         return
 
     try:
@@ -149,27 +157,47 @@ def classify_pending(limit: int | None = None) -> int:
     return done
 
 
-def _stable_scan(pending_sizes: dict) -> list[tuple[Path, str | None]]:
-    """Return files whose size is unchanged since the last poll (fully written)."""
-    candidates: list[tuple[Path, str | None]] = []
-    scan = [(config.INBOX_DIR, None),
-            (config.INBOX_DIR / "sheets", "sheet"),
-            (config.INBOX_DIR / "singles", "single")]
+RESERVED_DIRS = {"sheets", "singles"}
+
+
+def _stable_scan(pending_sizes: dict) -> list[tuple[Path, str | None, str | None]]:
+    """Return (path, forced_type, sku_override) for files whose size is
+    unchanged since the last poll (fully written).
+
+    Inbox layout:
+      inbox/*.png            -> SKU from filename (SKU_REGEX)
+      inbox/sheets/*.png     -> forced Type A, SKU from filename
+      inbox/singles/*.png    -> forced Type B, SKU from filename
+      inbox/<RING>/*.png     -> ring folder: ALL files group under SKU <RING>,
+                                type auto-detected per file. Use this when a
+                                ring's views are a bunch of arbitrarily-named
+                                single files.
+    """
+    candidates: list[tuple[Path, str | None, str | None]] = []
+    scan: list[tuple[Path, str | None, str | None]] = [
+        (config.INBOX_DIR, None, None),
+        (config.INBOX_DIR / "sheets", "sheet", None),
+        (config.INBOX_DIR / "singles", "single", None),
+    ]
+    if config.INBOX_DIR.exists():
+        for d in sorted(config.INBOX_DIR.iterdir()):
+            if d.is_dir() and d.name not in RESERVED_DIRS:
+                scan.append((d, None, d.name))
     ready = []
-    for folder, forced in scan:
+    for folder, forced, sku_override in scan:
         if not folder.exists():
             continue
         for p in sorted(folder.iterdir()):
             if not p.is_file() or p.suffix.lower() not in config.IMAGE_EXTS:
                 continue
-            candidates.append((p, forced))
+            candidates.append((p, forced, sku_override))
     seen = set()
-    for p, forced in candidates:
+    for p, forced, sku_override in candidates:
         key = str(p)
         seen.add(key)
         size = p.stat().st_size
         if pending_sizes.get(key) == size:
-            ready.append((p, forced))
+            ready.append((p, forced, sku_override))
             pending_sizes.pop(key, None)
         else:
             pending_sizes[key] = size
@@ -179,6 +207,20 @@ def _stable_scan(pending_sizes: dict) -> list[tuple[Path, str | None]]:
     return ready
 
 
+def _cleanup_ring_folders() -> None:
+    """Remove emptied ring folders so the inbox reads as 'caught up'."""
+    if not config.INBOX_DIR.exists():
+        return
+    for d in config.INBOX_DIR.iterdir():
+        if d.is_dir() and d.name not in RESERVED_DIRS:
+            try:
+                next(d.iterdir())
+            except StopIteration:
+                d.rmdir()
+            except OSError:
+                pass
+
+
 def run_forever(stop_event: threading.Event | None = None) -> None:
     config.ensure_dirs()
     db.init_db()
@@ -186,11 +228,12 @@ def run_forever(stop_event: threading.Event | None = None) -> None:
     log.info("ingestion worker started (poll every %ss)", config.INBOX_POLL_SECONDS)
     while stop_event is None or not stop_event.is_set():
         try:
-            for path, forced in _stable_scan(pending_sizes):
+            for path, forced, sku_override in _stable_scan(pending_sizes):
                 try:
-                    process_file(path, forced)
+                    process_file(path, forced, sku_override)
                 except Exception:
                     _fail(path, "Unexpected error during processing:\n" + traceback.format_exc())
+            _cleanup_ring_folders()
             classify_pending()
         except Exception:
             log.exception("worker cycle error")

@@ -48,6 +48,11 @@ cycle (15s default) each file is processed and moved to
 `data/library/<SKU>/originals/`; the inbox stays empty when caught up.
 
 - The SKU is read from the start of the filename: `SW-2841_views.jpg` → `SW-2841`.
+- **A bunch of files for ONE ring? Drop a folder.** Make a folder named after
+  the ring (e.g. `inbox\SW-2841\`) and put all its images inside — any
+  filenames, any mix of 4-up sheets and single renders. Everything in the
+  folder becomes views of that one ring; the folder disappears when ingested.
+  Without this, files like `01.png`…`08.png` each become a separate ring.
 - 4-up CAD sheets (2×2 grid of orthographic views) are detected automatically
   and split into 4 view images. If detection ever guesses wrong, force it:
   files dropped into `data/inbox/sheets/` are always treated as 4-up sheets,

@@ -16,8 +16,9 @@ def ingest_all():
     """Two stable-scan passes (size must be unchanged across polls), then process."""
     pending = {}
     worker._stable_scan(pending)          # first sighting: records sizes
-    for path, forced in worker._stable_scan(pending):
-        worker.process_file(path, forced)
+    for path, forced, sku_override in worker._stable_scan(pending):
+        worker.process_file(path, forced, sku_override)
+    worker._cleanup_ring_folders()
 
 
 class TestIngestion:
@@ -65,6 +66,24 @@ class TestIngestion:
         pending = {}
         assert worker._stable_scan(pending) == []          # first pass: not ready
         assert len(worker._stable_scan(pending)) == 1      # unchanged size: ready
+
+    def test_ring_folder_groups_arbitrary_filenames(self):
+        """A folder of arbitrarily-named view files = ONE ring (folder name = SKU)."""
+        drop(make_beauty(), "01.png", sub="My Ring 99")
+        drop(make_beauty(700, 700), "02.png", sub="My Ring 99")
+        drop(make_sheet(), "random-name.jpg", sub="My Ring 99")  # sheet inside folder: auto-split
+        ingest_all()
+        views = db.sku_views("My-Ring-99")
+        assert len(views) == 6  # 2 singles + 4 sheet quadrants, all one SKU
+        assert not (config.INBOX_DIR / "My Ring 99").exists()  # folder cleaned up
+        # nothing leaked into separate SKUs
+        assert db.get_sku("01") is None and db.get_sku("random-name") is None
+
+    def test_ring_folder_does_not_break_reserved_dirs(self):
+        drop(make_beauty(), "SKU900_x.png", sub="singles")
+        ingest_all()
+        assert len(db.sku_views("SKU900")) == 1
+        assert (config.INBOX_DIR / "singles").exists()  # reserved dir never removed
 
 
 class TestClassifyParsing:
