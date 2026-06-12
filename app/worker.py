@@ -98,6 +98,18 @@ def process_file(path: Path, forced_type: str | None = None,
     if new_paths:
         local_tag_sku(sku)
 
+    # Whole-CAD display image (unclipped, browser-safe JPEG) — shown as the
+    # suggested match. Built from the original in memory, so HEIC/webp/etc. all
+    # render. Sheets win over singles as the SKU's representative image.
+    try:
+        disp_dir = config.LIBRARY_DIR / sku / "display"
+        disp_dir.mkdir(parents=True, exist_ok=True)
+        disp_path = disp_dir / f"{path.stem}.jpg"
+        pipeline.make_display(img).save(disp_path, "JPEG", quality=90)
+        db.set_display_path(sku, str(disp_path.relative_to(config.DATA_DIR)), overwrite=is_sheet)
+    except Exception:
+        log.exception("display image generation failed for %s", sku)
+
     originals_dir = config.LIBRARY_DIR / sku / "originals"
     originals_dir.mkdir(parents=True, exist_ok=True)
     dest = originals_dir / path.name

@@ -67,10 +67,14 @@ def _build_results(best: dict, filters: dict, top_k: int) -> list[dict]:
         tags = _tags_of(row)
         if not _passes_filters(tags, filters):
             continue
+        # Show the WHOLE CAD (display image) when available; fall back to the
+        # matched view only if a ring has no display image yet.
+        display = row["display_path"] if row and row["display_path"] else path
         out.append({
             "sku": sku,
             "score": round(score, 4),
-            "image": path,
+            "image": display,
+            "match_view": path,
             "tags": tags,
             "tags_status": row["tags_status"] if row else "pending",
             "price": row["price"] if row else None,

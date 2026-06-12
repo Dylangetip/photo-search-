@@ -36,7 +36,8 @@ PRICE_IN_PER_MTOK = float(os.environ.get("PRICE_IN_PER_MTOK", "3.0"))
 PRICE_OUT_PER_MTOK = float(os.environ.get("PRICE_OUT_PER_MTOK", "15.0"))
 
 # Image processing
-VIEW_SIZE = 512          # longest side of derived view images
+VIEW_SIZE = 512          # longest side of derived view images (used for matching)
+DISPLAY_SIZE = 1100      # longest side of the whole-CAD image shown in the UI
 QUERY_RESIZE = 384       # downscale query images before rembg to stay under the latency target
 # Type A (4-up CAD sheet) detection — env-tunable so the window can be adjusted
 # against real sheets without rebuilding. Real Sierra West sheets measured ~1.6-1.7;

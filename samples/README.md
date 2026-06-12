@@ -1,17 +1,21 @@
-# Sample drop folders — for testing from a browser only (no installs)
+# Testing samples — via Google Drive
 
-Used to test RingFinder with real files when you can't run anything locally.
+Test files come from **Google Drive only** (not GitHub uploads).
 
-**How to upload from a work PC (browser only):**
+**How to send test files for a pipeline run:**
 
-1. Open this repo on github.com and switch to the working branch.
-2. Navigate into `samples/cads/` → **Add file → Upload files**.
-3. Drag your CAD files straight from File Explorer into the page, **Commit changes**.
-4. Repeat in `samples/queries/` with the customer-style photos
-   (finger shots, Pinterest saves — the "ring requests" folder).
-5. Tell Claude the files are up — the full pipeline test runs in the cloud.
+1. Put CAD renders and/or customer-style query photos into a Google Drive
+   folder. Subfolders like `cads/` and `requests/` keep them sorted, but a
+   flat folder is fine.
+2. Set the folder's sharing to **"Anyone with the link"** (Viewer is enough
+   for read-only pulls; Editor if you want people to drop files in).
+3. Send the share link and say which files are CADs vs. queries.
 
-Notes:
-- GitHub's web uploader takes batches of files; keep each file under 25 MB.
-- These folders are for testing only; production ingestion uses `data/inbox/`
-  on the mini PC.
+The whole catalog can then be ingested and every query run against it in the
+cloud session — no installs, no GitHub.
+
+> Production never uses Drive or GitHub: staff drop files into the mini PC's
+> `data/inbox/` folder via File Explorer. These channels are for testing only.
+
+`tools/pull_drive.py` downloads a public Drive folder's images by link — see
+that file for usage.

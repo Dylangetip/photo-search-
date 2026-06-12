@@ -248,6 +248,9 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pretty = (v) => String(v ?? "").replace(/_/g, " ");
 const money = (p) => p == null ? "" : "$" + Number(p).toLocaleString();
+// Encode each path segment — filenames can contain spaces and '#' (which would
+// otherwise truncate the URL as a fragment).
+const mediaUrl = (path) => "/media/" + String(path).split("/").map(encodeURIComponent).join("/");
 
 async function api(path, opts) {
   const r = await fetch(path, opts);
@@ -395,7 +398,7 @@ function cardHtml(r, i, isImage) {
   const score = isImage && r.score != null ? Math.round(r.score * 100) : null;
   return `<div class="ring-card${i === 0 && isImage ? " top-match" : ""}" role="button" tabindex="0" data-sku="${esc(r.sku)}" style="animation-delay:${i * 30}ms">
     <div class="card-img">
-      <img src="/media/${esc(r.image)}" alt="${esc(r.sku)}" loading="lazy">
+      <img src="${mediaUrl(r.image)}" alt="${esc(r.sku)}" loading="lazy">
       ${score != null ? `<span class="hallmark" title="${score}% match">${score}</span>` : ""}
       <span class="view-affordance">View</span>
     </div>
@@ -439,7 +442,9 @@ function resultsHtml() {
 function detailHtml() {
   const d = state.detail;
   if (!d) return "";
-  const active = d.views[d.activeView] || d.views[0];
+  // Whole-CAD display images (strings). Fall back to the main image.
+  const imgs = (d.views && d.views.length) ? d.views : (d.image ? [d.image] : []);
+  const active = imgs[d.activeView] || imgs[0];
   const specs = [];
   const t = d.tags || {};
   const specMap = { "Metal": t.metal_color, "Stone": t.center_stone_shape, "Setting": t.setting_type, "Band": t.band_style, "Pavé": t.pave };
@@ -449,9 +454,9 @@ function detailHtml() {
     <button class="back-link" id="backBtn">← Back to results</button>
     <div class="detail-main">
       <div class="viewer-col">
-        <div class="viewer">${active ? `<img src="/media/${esc(active.image)}" alt="${esc(d.sku)}">` : ""}</div>
+        <div class="viewer">${active ? `<img src="${mediaUrl(active)}" alt="${esc(d.sku)}">` : ""}</div>
         <div class="thumb-rail">
-          ${d.views.map((v, i) => `<button class="thumb${i === (d.activeView || 0) ? " active" : ""}" data-view="${i}"><img src="/media/${esc(v.image)}" alt=""><span class="thumb-label">View ${i + 1}</span></button>`).join("")}
+          ${imgs.length > 1 ? imgs.map((v, i) => `<button class="thumb${i === (d.activeView || 0) ? " active" : ""}" data-view="${i}"><img src="${mediaUrl(v)}" alt=""><span class="thumb-label">View ${i + 1}</span></button>`).join("") : ""}
         </div>
       </div>
       <div class="info-col">
@@ -561,10 +566,11 @@ function bindMain() {
   });
   $("findSimilar")?.addEventListener("click", async () => {
     const d = state.detail;
-    const v = d.views[d.activeView || 0] || d.views[0];
+    const imgs = (d.views && d.views.length) ? d.views : (d.image ? [d.image] : []);
+    const v = imgs[d.activeView || 0] || imgs[0];
     if (!v) return;
-    const blob = await (await fetch("/media/" + v.image)).blob();
-    runImageSearch(new File([blob], d.sku + ".png", { type: blob.type }));
+    const blob = await (await fetch(mediaUrl(v))).blob();
+    runImageSearch(new File([blob], d.sku + ".jpg", { type: blob.type }));
   });
   $("classifyBtn")?.addEventListener("click", async (e) => {
     e.target.disabled = true; e.target.textContent = "Classifying…";

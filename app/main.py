@@ -127,11 +127,18 @@ def sku_detail(sku: str):
     row = db.get_sku(sku)
     if row is None:
         return JSONResponse({"error": "unknown sku"}, status_code=404)
-    views = [{"id": v["id"], "image": v["file_path"], "source_type": v["source_type"]}
-             for v in db.sku_views(sku)]
+    # Whole-CAD display images (one per original file), browser-safe JPEGs.
+    displays = []
+    disp_dir = config.LIBRARY_DIR / sku / "display"
+    if disp_dir.exists():
+        displays = [str(p.relative_to(config.DATA_DIR))
+                    for p in sorted(disp_dir.iterdir())
+                    if p.suffix.lower() == ".jpg"]
+    main_image = row["display_path"] if row["display_path"] else (displays[0] if displays else None)
     tags = search._tags_of(row)
     return {"sku": sku, "name": row["name"], "price": row["price"],
-            "tags": tags, "tags_status": row["tags_status"], "views": views}
+            "tags": tags, "tags_status": row["tags_status"],
+            "image": main_image, "views": displays}
 
 
 @app.get("/api/admin/status")

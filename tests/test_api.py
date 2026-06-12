@@ -95,9 +95,23 @@ class TestRestApi:
         with client() as c:
             r = c.get("/api/sku/SKU123")
         body = r.json()
-        assert len(body["views"]) == 4
+        # detail now returns whole-CAD display images (one per original sheet)
+        assert body["image"] and body["image"].endswith(".jpg")
+        assert "display/" in body["image"]
+        assert len(body["views"]) >= 1
         assert body["tags"]["metal_color"] == "yellow_gold"
         assert client().get("/api/sku/NOPE").status_code == 404
+
+    def test_results_show_whole_cad_display_image(self):
+        setup_catalog()
+        beauty_view = db.sku_views("SKU456")[0]
+        img_path = config.DATA_DIR / beauty_view["file_path"]
+        with client() as c:
+            r = c.post("/api/search/image",
+                       files={"file": ("q.png", img_path.read_bytes(), "image/png")})
+        top = r.json()["results"][0]
+        assert "display/" in top["image"] and top["image"].endswith(".jpg")
+        assert "match_view" in top  # cropped view still available for re-search
 
     def test_admin_status(self):
         setup_catalog()

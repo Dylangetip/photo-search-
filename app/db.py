@@ -12,12 +12,13 @@ _lock = threading.Lock()
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS skus (
-    sku         TEXT PRIMARY KEY,
-    created_at  TEXT NOT NULL,
-    tags_json   TEXT,
-    tags_status TEXT NOT NULL DEFAULT 'pending',  -- pending | done | disabled
-    price       REAL,
-    name        TEXT
+    sku          TEXT PRIMARY KEY,
+    created_at   TEXT NOT NULL,
+    tags_json    TEXT,
+    tags_status  TEXT NOT NULL DEFAULT 'pending',  -- pending | done | disabled
+    price        REAL,
+    name         TEXT,
+    display_path TEXT                               -- whole-CAD image shown in results/detail
 );
 CREATE TABLE IF NOT EXISTS views (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,6 +59,22 @@ def init_db() -> None:
     config.ensure_dirs()
     with _lock, connect() as conn:
         conn.executescript(SCHEMA)
+        # Migration: add display_path to pre-existing skus tables.
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(skus)")}
+        if "display_path" not in cols:
+            conn.execute("ALTER TABLE skus ADD COLUMN display_path TEXT")
+
+
+def set_display_path(sku: str, path: str, overwrite: bool) -> None:
+    """The whole-CAD image to show for this ring. Sheets (overwrite=True) win
+    over singles; among singles, the first one sticks."""
+    with _lock, connect() as conn:
+        if overwrite:
+            conn.execute("UPDATE skus SET display_path = ? WHERE sku = ?", (path, sku))
+        else:
+            conn.execute(
+                "UPDATE skus SET display_path = ? WHERE sku = ?"
+                " AND (display_path IS NULL OR display_path = '')", (path, sku))
 
 
 def now_iso() -> str:

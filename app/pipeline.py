@@ -125,6 +125,20 @@ def composite_crop_resize(rgba: Image.Image,
     return out
 
 
+def make_display(img: Image.Image, max_side: int = config.DISPLAY_SIZE) -> Image.Image:
+    """The WHOLE CAD, unclipped — just flattened to RGB on white (handles
+    transparency / HEIC) and downscaled for the browser. No background removal,
+    no cropping: this is what staff see as the suggested match."""
+    img = img.convert("RGBA")
+    flat = Image.new("RGB", img.size, (255, 255, 255))
+    flat.paste(img, mask=img.split()[-1])
+    w, h = flat.size
+    if max(w, h) > max_side:
+        s = max_side / max(w, h)
+        flat = flat.resize((round(w * s), round(h * s)), Image.LANCZOS)
+    return flat
+
+
 def preprocess_view(img: Image.Image) -> Image.Image:
     """The full funnel: rembg -> white bg -> bbox crop (8% pad) -> 512px."""
     return composite_crop_resize(remove_background(img.convert("RGB")))
