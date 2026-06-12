@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RingFinder — Sierra West Jewelers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ivory: #FAF8F4; --card: #FFFFFF; --ink: #1C1A17; --graphite: #6E675C;
+    --champagne: #B08D4F; --hairline: #E8E2D8; --velvet: #2E2620; --tray: #F4F0E8;
+    --display: "Cormorant Garamond", Georgia, serif;
+    --body: "Inter", "Helvetica Neue", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--ivory); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  button { font-family: inherit; font-size: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+  button:focus-visible, input:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--champagne); outline-offset: 2px; border-radius: 4px; }
+  .content { max-width: 1200px; margin: 0 auto; padding: 0 28px; }
+  .hidden { display: none !important; }
+
+  /* ============ Top bar ============ */
+  .topbar { position: sticky; top: 0; z-index: 50; background: rgba(250,248,244,0.94); backdrop-filter: blur(8px); border-bottom: 1px solid var(--hairline); }
+  .topbar-inner { max-width: 1200px; margin: 0 auto; padding: 0 28px; height: 64px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; }
+  .wordmark { justify-self: start; font-family: var(--display); font-weight: 600; font-size: 22px; letter-spacing: -0.01em; color: var(--ink); }
+  .search-cluster { display: flex; align-items: center; gap: 8px; }
+  .search-form { display: flex; align-items: center; gap: 8px; width: min(420px, 44vw); height: 40px; padding: 0 14px; background: var(--card); border: 1px solid var(--hairline); border-radius: 10px; color: var(--graphite); transition: border-color 150ms ease-out; }
+  .search-form:focus-within { border-color: var(--champagne); }
+  .search-input { flex: 1; border: none; background: none; outline: none; font-family: var(--body); font-size: 15px; color: var(--ink); min-width: 0; }
+  .search-input::placeholder { color: var(--graphite); opacity: 0.7; }
+  .upload-btn { display: flex; align-items: center; gap: 7px; height: 40px; padding: 0 14px; background: var(--card); border: 1px solid var(--hairline); border-radius: 10px; color: var(--graphite); font-size: 13px; font-weight: 500; transition: border-color 150ms ease-out, color 150ms ease-out; }
+  .upload-btn:hover { border-color: var(--champagne); color: var(--ink); }
+  .image-query { display: flex; align-items: center; gap: 9px; width: min(420px, 44vw); height: 40px; padding: 0 8px 0 6px; background: var(--card); border: 1px solid var(--champagne); border-radius: 10px; }
+  .iq-thumb { width: 28px; height: 28px; border-radius: 6px; overflow: hidden; flex: none; display: grid; place-items: center; border: 1px solid var(--hairline); background: #fff; }
+  .iq-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .iq-label { flex: 1; font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--graphite); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .iq-clear { font-size: 17px; color: var(--graphite); padding: 2px 7px; border-radius: 6px; line-height: 1; }
+  .iq-clear:hover { color: var(--ink); background: var(--ivory); }
+  .topbar-right { justify-self: end; display: flex; align-items: center; gap: 14px; }
+  .status { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); white-space: nowrap; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--champagne); }
+  .gear-btn { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; color: var(--graphite); transition: color 150ms ease-out, background 150ms ease-out; }
+  .gear-btn:hover { color: var(--ink); background: rgba(28,26,23,0.05); }
+  @media (max-width: 900px) { .status { display: none; } }
+
+  /* ============ Filter row ============ */
+  .filter-row { display: flex; gap: 10px; padding: 18px 0 6px; }
+  .pill-wrap { position: relative; }
+  .pill { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; background: var(--card); border: 1px solid var(--hairline); border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--graphite); transition: border-color 150ms ease-out, background 150ms ease-out, color 150ms ease-out; }
+  .pill:hover { border-color: var(--champagne); color: var(--ink); }
+  .pill.active { background: var(--champagne); border-color: var(--champagne); color: #FFFDF8; }
+  .pill .chev { opacity: 0.7; }
+  .pill-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; min-width: 168px; padding: 6px; background: var(--card); border: 1px solid var(--hairline); border-radius: 12px; box-shadow: 0 10px 28px rgba(28,26,23,0.10), 0 2px 6px rgba(28,26,23,0.05); display: flex; flex-direction: column; gap: 1px; max-height: 320px; overflow-y: auto; }
+  .pill-option { text-align: left; padding: 8px 12px; border-radius: 8px; font-size: 13.5px; color: var(--ink); }
+  .pill-option:hover { background: var(--ivory); }
+  .pill-option.sel { color: var(--champagne); font-weight: 600; }
+
+  /* ============ The tray ============ */
+  .tray { margin: 14px 0 48px; background: var(--tray); border: 1px solid var(--hairline); border-radius: 16px; box-shadow: inset 0 2px 6px rgba(28,26,23,0.055), inset 0 1px 0 rgba(28,26,23,0.04); padding: 26px; }
+  .results-line { display: flex; align-items: center; justify-content: space-between; margin: 2px 4px 16px; }
+  .results-count { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--graphite); }
+  .results-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  @media (max-width: 1080px) { .results-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 840px)  { .results-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ============ Result card ============ */
+  .ring-card { position: relative; background: var(--card); border: 1px solid var(--hairline); border-radius: 12px; overflow: hidden; cursor: pointer; box-shadow: 0 1px 2px rgba(28,26,23,0.04); transition: transform 150ms ease-out, box-shadow 150ms ease-out; animation: cardIn 200ms ease-out backwards; }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .ring-card { animation: none; } }
+  .ring-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(28,26,23,0.12), 0 3px 8px rgba(28,26,23,0.06); }
+  @media (prefers-reduced-motion: reduce) { .ring-card:hover { transform: none; } }
+  .ring-card.top-match { border-color: var(--champagne); }
+  .card-img { position: relative; aspect-ratio: 1/1; background: #FFFFFF; border-bottom: 1px solid var(--hairline); display: grid; place-items: center; }
+  .card-img img { width: 88%; height: 88%; object-fit: contain; }
+  .view-affordance { position: absolute; bottom: 10px; right: 10px; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--champagne); opacity: 0; transition: opacity 150ms ease-out; }
+  .ring-card:hover .view-affordance { opacity: 1; }
+  .card-meta { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 5px; }
+  .card-sku { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--graphite); }
+  .card-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .card-name { font-family: var(--display); font-weight: 600; font-size: 19px; letter-spacing: -0.01em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-price { font-family: var(--mono); font-size: 13px; color: var(--ink); flex: none; }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+  .chip { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border: 1px solid var(--hairline); border-radius: 999px; font-size: 11.5px; color: var(--graphite); background: none; white-space: nowrap; }
+  .chip.more { border-style: dashed; }
+
+  /* ============ Hallmark stamp ============ */
+  .hallmark { position: absolute; top: 10px; right: 10px; min-width: 32px; height: 32px; padding: 0 5px; display: grid; place-items: center; border-radius: 8px; font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: #FFFDF8; background: linear-gradient(180deg, color-mix(in oklab, var(--champagne), white 16%), var(--champagne) 60%, color-mix(in oklab, var(--champagne), black 8%)); border: 1px solid color-mix(in oklab, var(--champagne), black 14%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -1px 0 rgba(0,0,0,0.10), 0 1px 2px rgba(28,26,23,0.18); }
+
+  /* ============ Home empty state ============ */
+  .empty-home { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 56px 24px 64px; }
+  .empty-title { font-family: var(--display); font-weight: 600; font-size: 44px; letter-spacing: -0.015em; margin: 0 0 8px; color: var(--ink); }
+  .empty-sub { margin: 0 0 36px; color: var(--graphite); font-size: 15px; }
+  .dropzone { display: flex; flex-direction: column; align-items: center; gap: 10px; width: min(560px, 100%); padding: 44px 32px; border: 1.5px dashed color-mix(in oklab, var(--champagne), white 22%); border-radius: 14px; background: rgba(255,255,255,0.55); color: var(--champagne); cursor: pointer; transition: border-color 150ms ease-out, background 150ms ease-out; }
+  .dropzone:hover, .dropzone.drag { border-color: var(--champagne); background: rgba(255,255,255,0.9); }
+  .dz-line { font-size: 16px; font-weight: 500; color: var(--ink); }
+  .dz-sub { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); }
+
+  /* ============ Matching progress ============ */
+  .matching { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 110px 24px 130px; }
+  .shimmer-ring { position: relative; display: grid; place-items: center; width: 92px; height: 92px; border-radius: 50%; color: var(--champagne); overflow: hidden; }
+  .shimmer-ring::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(176,141,79,0.28) 50%, transparent 65%); transform: translateX(-100%); animation: sweep 1.5s ease-in-out infinite; }
+  @keyframes sweep { to { transform: translateX(100%); } }
+  @media (prefers-reduced-motion: reduce) { .shimmer-ring::after { animation: none; } }
+  .matching-text { font-family: var(--mono); font-size: 13px; text-transform: uppercase; letter-spacing: 0.11em; color: var(--graphite); }
+
+  /* ============ Query strip ============ */
+  .query-strip { display: flex; align-items: center; gap: 16px; margin-top: 14px; padding: 12px 16px; background: var(--card); border: 1px solid var(--hairline); border-radius: 12px; }
+  .qs-thumb { width: 64px; height: 64px; flex: none; border-radius: 8px; overflow: hidden; display: grid; place-items: center; background: #fff; border: 1px solid var(--hairline); }
+  .qs-thumb img { width: 100%; height: 100%; object-fit: contain; }
+  .qs-arrow { color: var(--graphite); font-size: 16px; }
+  .qs-caption { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--graphite); }
+
+  /* ============ Empty / message states ============ */
+  .empty-filtered { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 90px 24px 100px; text-align: center; }
+  .ef-title { font-family: var(--display); font-weight: 600; font-size: 28px; color: var(--ink); }
+  .text-btn { font-size: 13.5px; font-weight: 500; color: var(--graphite); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--hairline); transition: color 150ms ease-out; }
+  .text-btn:hover { color: var(--champagne); text-decoration-color: var(--champagne); }
+  .text-btn.accent { color: var(--champagne); }
+  .text-btn:disabled { cursor: default; opacity: 0.7; }
+
+  /* ============ Detail ============ */
+  .detail { padding: 22px 0 48px; }
+  .back-link { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); transition: color 150ms ease-out; }
+  .back-link:hover { color: var(--ink); }
+  .detail-main { display: grid; grid-template-columns: 60fr 40fr; gap: 36px; margin-top: 18px; background: var(--card); border: 1px solid var(--hairline); border-radius: 16px; box-shadow: 0 2px 10px rgba(28,26,23,0.04); padding: 32px; }
+  @media (max-width: 920px) { .detail-main { grid-template-columns: 1fr; } }
+  .viewer-col { min-width: 0; }
+  .viewer { display: grid; place-items: center; aspect-ratio: 1/1; background: #FFFFFF; border: 1px solid var(--hairline); border-radius: 12px; overflow: hidden; }
+  .viewer img { width: 90%; height: 90%; object-fit: contain; }
+  .thumb-rail { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .thumb { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 7px 7px 6px; border-radius: 10px; border: 1px solid var(--hairline); background: #FFFFFF; transition: border-color 150ms ease-out; }
+  .thumb img { width: 56px; height: 56px; object-fit: contain; }
+  .thumb:hover { border-color: color-mix(in oklab, var(--champagne), white 35%); }
+  .thumb-label { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--graphite); padding-bottom: 3px; border-bottom: 2px solid transparent; }
+  .thumb.active .thumb-label { color: var(--champagne); border-bottom-color: var(--champagne); }
+  .info-col { display: flex; flex-direction: column; min-width: 0; }
+  .d-sku { font-family: var(--mono); font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--graphite); }
+  .d-name { font-family: var(--display); font-weight: 600; font-size: 44px; letter-spacing: -0.015em; margin: 4px 0 2px; line-height: 1.05; }
+  .d-price { font-family: var(--mono); font-size: 18px; color: var(--ink); margin-bottom: 22px; }
+  .specs { border-top: 1px solid var(--hairline); margin-bottom: 20px; }
+  .spec-row { display: grid; grid-template-columns: 160px 1fr; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--hairline); }
+  .spec-k { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--graphite); padding-top: 2px; }
+  .spec-v { font-size: 14.5px; color: var(--ink); }
+  .d-tags { margin-bottom: 26px; }
+  .primary-btn { width: 100%; height: 48px; border-radius: 10px; background: linear-gradient(180deg, color-mix(in oklab, var(--champagne), white 10%), var(--champagne)); border: 1px solid color-mix(in oklab, var(--champagne), black 12%); color: #FFFDF8; font-size: 15px; font-weight: 600; box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), 0 1px 3px rgba(28,26,23,0.12); transition: filter 150ms ease-out, transform 150ms ease-out; }
+  .primary-btn:hover { filter: brightness(1.05); }
+  .primary-btn:active { transform: translateY(1px); }
+
+  /* ============ Admin ============ */
+  .admin { padding: 22px 0 48px; }
+  .admin-head { display: flex; align-items: baseline; gap: 18px; margin-bottom: 20px; }
+  .admin-title { font-family: var(--display); font-weight: 600; font-size: 28px; margin: 0; letter-spacing: -0.01em; }
+  .stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  @media (max-width: 840px) { .stat-tiles { grid-template-columns: repeat(2, 1fr); } }
+  .stat-tile { background: var(--card); border: 1px solid var(--hairline); border-radius: 12px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 1px 2px rgba(28,26,23,0.04); }
+  .stat-num { font-family: var(--mono); font-size: 28px; font-weight: 500; color: var(--ink); }
+  .stat-label { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--graphite); }
+  .admin-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+  @media (max-width: 920px) { .admin-cols { grid-template-columns: 1fr; } }
+  .panel { background: var(--card); border: 1px solid var(--hairline); border-radius: 12px; padding: 20px; box-shadow: 0 1px 2px rgba(28,26,23,0.04); }
+  .panel-explainer { margin: 0 0 14px; font-size: 13.5px; color: var(--graphite); }
+  .section-label { display: block; font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--graphite); margin-bottom: 12px; }
+  .inbox-list { display: flex; flex-direction: column; }
+  .inbox-row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 14px; padding: 9px 2px; border-bottom: 1px solid var(--hairline); position: relative; overflow: hidden; }
+  .inbox-row:last-child { border-bottom: none; }
+  .inbox-file { font-family: var(--mono); font-size: 12.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .inbox-sku { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--graphite); }
+  .inbox-check { color: var(--champagne); font-size: 14px; }
+  .inbox-status { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); }
+  .inbox-time { font-family: var(--mono); font-size: 11.5px; color: var(--graphite); }
+  .inbox-row.processing::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, rgba(176,141,79,0.12) 50%, transparent 65%); transform: translateX(-100%); animation: sweep 1.8s ease-in-out infinite; }
+  .failed-list { display: flex; flex-direction: column; }
+  .failed-row { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 11px 2px; border-bottom: 1px solid var(--hairline); }
+  .failed-file { font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
+  .failed-reason { font-size: 13px; color: var(--graphite); }
+  .tags-pending-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 2px 4px; }
+  .tp-label { font-size: 13.5px; color: var(--ink); font-weight: 500; }
+  .pricing-card { margin-top: 14px; }
+  .csv-dropzone { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 26px; border: 1.5px dashed var(--hairline); border-radius: 10px; cursor: pointer; transition: border-color 150ms ease-out; }
+  .csv-dropzone:hover { border-color: color-mix(in oklab, var(--champagne), white 20%); }
+  .pricing-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 13px; }
+  .pricing-last { font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite); }
+
+  @media (max-width: 840px) {
+    .topbar-inner { grid-template-columns: auto 1fr auto; }
+    .search-form, .image-query { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <button class="wordmark" id="homeBtn">RingFinder</button>
+    <div class="search-cluster">
+      <form class="search-form" id="searchForm">
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="9" cy="9" r="5.5"></circle><line x1="13.2" y1="13.2" x2="17" y2="17"></line></svg>
+        <input class="search-input" id="searchInput" placeholder="Describe a ring…" aria-label="Search rings">
+      </form>
+      <div class="image-query hidden" id="imageQuery">
+        <span class="iq-thumb"><img id="iqThumb" alt=""></span>
+        <span class="iq-label">Customer photo</span>
+        <button class="iq-clear" id="iqClear" aria-label="Clear image query">×</button>
+      </div>
+      <button class="upload-btn" id="photoBtn">
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="5.5" width="16" height="11" rx="2.5"></rect><circle cx="10" cy="11" r="3.2"></circle><line x1="6" y1="5.5" x2="7.5" y2="3.5"></line><line x1="14" y1="5.5" x2="12.5" y2="3.5"></line></svg>
+        <span>Photo</span>
+      </button>
+      <input type="file" id="fileInput" accept="image/*" class="hidden">
+    </div>
+    <div class="topbar-right">
+      <span class="status"><span class="status-dot"></span><span id="statusText">— rings indexed</span></span>
+      <button class="gear-btn" id="gearBtn" aria-label="Admin and status">
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="6" x2="17" y2="6"></line><line x1="3" y1="14" x2="17" y2="14"></line><circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"></circle><circle cx="13" cy="14" r="2" fill="currentColor" stroke="none"></circle></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="content" id="filterRowWrap"><div class="filter-row" id="filterRow"></div></div>
+
+<main class="content" id="main"></main>
+
+<script>
+"use strict";
+/* RingFinder — vanilla JS frontend over the FastAPI backend. */
+
+const FILTER_LABELS = { metal_color: "Metal", center_stone_shape: "Stone shape", setting_type: "Setting" };
+const state = {
+  view: "home",                 // home | matching | results | detail | admin
+  mode: null,                   // text | image
+  query: "",
+  filters: { metal_color: null, center_stone_shape: null, setting_type: null },
+  filterOptions: {},
+  results: [],
+  queryPreview: null,           // cleaned query image (data URL)
+  queryThumb: null,             // original upload (object URL)
+  lastImageFile: null,
+  detail: null,
+  prev: null,
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pretty = (v) => String(v ?? "").replace(/_/g, " ");
+const money = (p) => p == null ? "" : "$" + Number(p).toLocaleString();
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || ("HTTP " + r.status));
+  return r.json();
+}
+
+/* ---------- chips / tags ---------- */
+function tagList(tags) {
+  if (!tags || !Object.keys(tags).length) return [];
+  const out = [];
+  for (const k of ["center_stone_shape", "metal_color", "setting_type", "band_style", "pave"]) {
+    const v = tags[k];
+    if (v && v !== "other" && v !== "none" && v !== "unclear") out.push(pretty(v));
+  }
+  for (const b of ["milgrain", "engraving", "cathedral", "side_stones"]) if (tags[b] === true) out.push(pretty(b));
+  for (const t of tags.style_tags || []) out.push(pretty(t));
+  return out;
+}
+function chipsHtml(tags, max) {
+  const list = tagList(tags);
+  const shown = list.slice(0, max);
+  const extra = list.length - shown.length;
+  if (!list.length) return "";
+  return `<div class="chips">${shown.map((t) => `<span class="chip">${esc(t)}</span>`).join("")}${extra > 0 ? `<span class="chip more">+${extra}</span>` : ""}</div>`;
+}
+
+/* ---------- filter pills ---------- */
+function renderFilters() {
+  const row = $("filterRow");
+  row.innerHTML = "";
+  for (const field of Object.keys(FILTER_LABELS)) {
+    const wrap = document.createElement("div");
+    wrap.className = "pill-wrap";
+    const val = state.filters[field];
+    const label = FILTER_LABELS[field];
+    wrap.innerHTML = `<button class="pill${val ? " active" : ""}"><span>${esc(val ? label + ": " + pretty(val) : label)}</span><svg class="chev" viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="2.5" y1="4.5" x2="6" y2="8"></line><line x1="9.5" y1="4.5" x2="6" y2="8"></line></svg>`;
+    const btn = wrap.querySelector("button");
+    btn.addEventListener("click", (e) => { e.stopPropagation(); toggleMenu(wrap, field); });
+    row.appendChild(wrap);
+  }
+}
+function toggleMenu(wrap, field) {
+  document.querySelectorAll(".pill-menu").forEach((m) => m.remove());
+  if (wrap.dataset.open === "1") { wrap.dataset.open = ""; return; }
+  document.querySelectorAll(".pill-wrap").forEach((w) => (w.dataset.open = ""));
+  wrap.dataset.open = "1";
+  const menu = document.createElement("div");
+  menu.className = "pill-menu";
+  const opts = [null, ...(state.filterOptions[field] || [])];
+  for (const o of opts) {
+    const b = document.createElement("button");
+    b.className = "pill-option" + (state.filters[field] === o ? " sel" : "");
+    b.textContent = o === null ? "Any " + FILTER_LABELS[field].toLowerCase() : pretty(o);
+    b.addEventListener("click", () => { state.filters[field] = o; menu.remove(); renderFilters(); rerunSearch(); });
+    menu.appendChild(b);
+  }
+  wrap.appendChild(menu);
+}
+document.addEventListener("click", () => document.querySelectorAll(".pill-menu").forEach((m) => m.remove()));
+
+/* ---------- search flows ---------- */
+function filterParams() {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(state.filters)) if (v) p.set(k, v);
+  return p;
+}
+async function runTextSearch(q) {
+  state.query = q; state.mode = "text"; state.view = "results";
+  state.queryPreview = state.queryThumb = state.lastImageFile = null;
+  render();
+  try {
+    const p = filterParams(); p.set("q", q);
+    const data = await api("/api/search/text?" + p.toString());
+    state.results = data.results;
+  } catch (e) { state.results = []; console.error(e); }
+  render();
+}
+async function runImageSearch(file) {
+  state.mode = "image"; state.view = "matching"; state.lastImageFile = file;
+  if (state.queryThumb) URL.revokeObjectURL(state.queryThumb);
+  state.queryThumb = URL.createObjectURL(file);
+  render();
+  try {
+    const fd = new FormData();
+    fd.append("file", file);
+    const data = await api("/api/search/image?" + filterParams().toString(), { method: "POST", body: fd });
+    state.results = data.results;
+    state.queryPreview = data.query_preview;
+  } catch (e) { state.results = []; state.queryPreview = null; console.error(e); }
+  state.view = "results";
+  render();
+}
+function rerunSearch() {
+  if (state.view !== "results") return;
+  if (state.mode === "text" && state.query) runTextSearch(state.query);
+  else if (state.mode === "image" && state.lastImageFile) runImageSearch(state.lastImageFile);
+}
+function goHome() {
+  state.view = "home"; state.mode = null; state.query = ""; state.results = [];
+  state.queryPreview = state.queryThumb = state.lastImageFile = null;
+  state.filters = { metal_color: null, center_stone_shape: null, setting_type: null };
+  $("searchInput").value = "";
+  renderFilters(); render();
+}
+
+/* ---------- rendering ---------- */
+function render() {
+  const main = $("main");
+  $("filterRowWrap").classList.toggle("hidden", state.view === "admin" || state.view === "detail");
+  $("imageQuery").classList.toggle("hidden", !(state.mode === "image" && state.queryThumb));
+  $("searchForm").classList.toggle("hidden", state.mode === "image" && !!state.queryThumb);
+  if (state.queryThumb) $("iqThumb").src = state.queryThumb;
+
+  if (state.view === "home") main.innerHTML = homeHtml();
+  else if (state.view === "matching") main.innerHTML = matchingHtml();
+  else if (state.view === "results") main.innerHTML = resultsHtml();
+  else if (state.view === "detail") main.innerHTML = detailHtml();
+  else if (state.view === "admin") main.innerHTML = adminHtml();
+  bindMain();
+  window.scrollTo(0, 0);
+}
+
+function homeHtml() {
+  return `<div class="tray"><div class="empty-home">
+    <h1 class="empty-title">Search by photo or description</h1>
+    <p class="empty-sub">Type what the customer describes, or drop their photo below.</p>
+    <div class="dropzone" id="dropzone">
+      <svg viewBox="0 0 48 48" width="46" height="46" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="29" r="13"></circle><rect x="19.5" y="6.5" width="9" height="9" transform="rotate(45 24 11)"></rect></svg>
+      <span class="dz-line">Drop a customer photo here</span>
+      <span class="dz-sub">JPG · PNG · WEBP — or click to browse</span>
+    </div>
+  </div></div>`;
+}
+function matchingHtml() {
+  const n = $("statusText").dataset.count || "the catalog";
+  return `<div class="tray"><div class="matching">
+    <span class="shimmer-ring"><svg viewBox="0 0 48 48" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="29" r="13"></circle><rect x="19.5" y="6.5" width="9" height="9" transform="rotate(45 24 11)"></rect></svg></span>
+    <span class="matching-text">Matching against ${esc(n)} rings…</span>
+  </div></div>`;
+}
+function cardHtml(r, i, isImage) {
+  const score = isImage && r.score != null ? Math.round(r.score * 100) : null;
+  return `<div class="ring-card${i === 0 && isImage ? " top-match" : ""}" role="button" tabindex="0" data-sku="${esc(r.sku)}" style="animation-delay:${i * 30}ms">
+    <div class="card-img">
+      <img src="/media/${esc(r.image)}" alt="${esc(r.sku)}" loading="lazy">
+      ${score != null ? `<span class="hallmark" title="${score}% match">${score}</span>` : ""}
+      <span class="view-affordance">View</span>
+    </div>
+    <div class="card-meta">
+      <span class="card-sku">${esc(r.sku)}</span>
+      <div class="card-row">
+        <span class="card-name">${esc(r.name || pretty(r.tags?.center_stone_shape) || "Ring")}</span>
+        <span class="card-price">${esc(money(r.price))}</span>
+      </div>
+      ${chipsHtml(r.tags, 3)}
+    </div>
+  </div>`;
+}
+function resultsHtml() {
+  const isImage = state.mode === "image";
+  let strip = "";
+  if (isImage && state.queryPreview) {
+    strip = `<div class="query-strip">
+      <span class="qs-thumb"><img src="${state.queryThumb ? esc(state.queryThumb) : ""}" alt="original"></span>
+      <span class="qs-arrow">→</span>
+      <span class="qs-thumb"><img src="${esc(state.queryPreview)}" alt="cleaned"></span>
+      <span class="qs-caption">Photo cleaned for matching</span>
+    </div>`;
+  }
+  if (!state.results.length) {
+    return strip + `<div class="tray"><div class="empty-filtered">
+      <span class="ef-title">No rings match</span>
+      <button class="text-btn" id="clearFilters">Clear filters</button>
+    </div></div>`;
+  }
+  return strip + `<div class="tray">
+    <div class="results-line"><span class="results-count">${state.results.length} match${state.results.length === 1 ? "" : "es"} · sorted by ${isImage ? "similarity" : "relevance"}</span></div>
+    <div class="results-grid">${state.results.map((r, i) => cardHtml(r, i, isImage)).join("")}</div>
+  </div>`;
+}
+function detailHtml() {
+  const d = state.detail;
+  if (!d) return "";
+  const active = d.views[d.activeView] || d.views[0];
+  const specs = [];
+  const t = d.tags || {};
+  const specMap = { "Metal": t.metal_color, "Stone": t.center_stone_shape, "Setting": t.setting_type, "Band": t.band_style, "Pavé": t.pave };
+  for (const [k, v] of Object.entries(specMap)) if (v && v !== "other" && v !== "unclear") specs.push([k, pretty(v)]);
+  for (const [k, v] of Object.entries(t.annotated_dimensions_mm || {})) specs.push([k, v + (String(v).match(/mm/i) ? "" : " mm")]);
+  return `<div class="detail">
+    <button class="back-link" id="backBtn">← Back to results</button>
+    <div class="detail-main">
+      <div class="viewer-col">
+        <div class="viewer">${active ? `<img src="/media/${esc(active.image)}" alt="${esc(d.sku)}">` : ""}</div>
+        <div class="thumb-rail">
+          ${d.views.map((v, i) => `<button class="thumb${i === (d.activeView || 0) ? " active" : ""}" data-view="${i}"><img src="/media/${esc(v.image)}" alt=""><span class="thumb-label">View ${i + 1}</span></button>`).join("")}
+        </div>
+      </div>
+      <div class="info-col">
+        <span class="d-sku">${esc(d.sku)}</span>
+        <h1 class="d-name">${esc(d.name || "Ring " + d.sku)}</h1>
+        <span class="d-price">${esc(money(d.price)) || "&nbsp;"}</span>
+        ${specs.length ? `<div class="specs">${specs.map(([k, v]) => `<div class="spec-row"><span class="spec-k">${esc(k)}</span><span class="spec-v">${esc(v)}</span></div>`).join("")}</div>` : ""}
+        <div class="d-tags">${chipsHtml(d.tags, 99)}</div>
+        <button class="primary-btn" id="findSimilar">Find similar rings</button>
+      </div>
+    </div>
+  </div>`;
+}
+function adminHtml() {
+  const s = state.admin || {};
+  const recent = s.recent || [];
+  const failed = s.failed || [];
+  return `<div class="admin">
+    <div class="admin-head"><button class="back-link" id="backBtn">← Back</button><h1 class="admin-title">Status</h1></div>
+    <div class="stat-tiles">
+      ${[["Rings indexed", s.skus_indexed], ["Views embedded", s.views_embedded], ["Tags pending", s.tags_pending], ["Failed files", s.failed_files]]
+        .map(([l, n]) => `<div class="stat-tile"><span class="stat-num">${n ?? "—"}</span><span class="stat-label">${l}</span></div>`).join("")}
+    </div>
+    <div class="admin-cols">
+      <div class="panel">
+        <span class="section-label">Inbox</span>
+        <p class="panel-explainer">Drop render files into <code>data/inbox</code> on the mini&nbsp;PC — they appear here as they're processed. Use <code>inbox/sheets</code> or <code>inbox/singles</code> to force the render type.</p>
+        <div class="inbox-list">
+          ${recent.length ? recent.map((r) => `<div class="inbox-row${r.status === "processing" ? " processing" : ""}">
+              <span class="inbox-file">${esc(r.file)}</span>
+              <span class="inbox-sku">${esc(r.sku || "")}</span>
+              ${r.status === "done" ? '<span class="inbox-check">✓</span>' : `<span class="inbox-status">${esc(r.status)}</span>`}
+              <span class="inbox-time">${esc((r.ts || "").slice(11, 16))}</span>
+            </div>`).join("") : '<p class="panel-explainer">Nothing ingested since the last restart.</p>'}
+        </div>
+      </div>
+      <div class="panel">
+        <span class="section-label">Needs attention</span>
+        <div class="failed-list">
+          ${failed.length ? failed.map((f) => `<div class="failed-row"><span class="failed-file">${esc(f.file)}</span><span class="failed-reason">${esc(f.reason)}</span></div>`).join("") : '<p class="panel-explainer">No failed files.</p>'}
+        </div>
+        <div class="tags-pending-row">
+          <span class="tp-label">${s.tags_pending ?? 0} rings awaiting tags${s.classify_enabled ? "" : " (classification disabled — set ANTHROPIC_API_KEY)"}</span>
+          <button class="text-btn accent" id="classifyBtn" ${s.classify_enabled && s.tags_pending ? "" : "disabled"}>Run classification now</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel pricing-card">
+      <span class="section-label">Pricing</span>
+      <div class="csv-dropzone" id="csvZone">
+        <span class="dz-line">Drop a pricing CSV here, or click to browse</span>
+        <span class="dz-sub">CSV with sku, price, name columns</span>
+      </div>
+      <input type="file" id="csvInput" accept=".csv,text/csv" class="hidden">
+      <div class="pricing-foot"><span class="pricing-last" id="pricingResult"></span></div>
+    </div>
+  </div>`;
+}
+
+/* ---------- event binding ---------- */
+function bindMain() {
+  const dz = $("dropzone");
+  if (dz) {
+    dz.addEventListener("click", () => $("fileInput").click());
+    dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("drag"); });
+    dz.addEventListener("dragleave", () => dz.classList.remove("drag"));
+    dz.addEventListener("drop", (e) => {
+      e.preventDefault(); dz.classList.remove("drag");
+      const f = e.dataTransfer.files[0];
+      if (f) runImageSearch(f);
+    });
+  }
+  document.querySelectorAll(".ring-card").forEach((c) => {
+    const open = () => openDetail(c.dataset.sku);
+    c.addEventListener("click", open);
+    c.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+  });
+  document.querySelectorAll(".thumb").forEach((t) =>
+    t.addEventListener("click", () => { state.detail.activeView = Number(t.dataset.view); render(); }));
+  $("backBtn")?.addEventListener("click", () => {
+    state.view = state.prev || "results";
+    if (!state.results.length && state.view === "results") state.view = "home";
+    render();
+  });
+  $("clearFilters")?.addEventListener("click", () => {
+    state.filters = { metal_color: null, center_stone_shape: null, setting_type: null };
+    renderFilters(); rerunSearch();
+  });
+  $("findSimilar")?.addEventListener("click", async () => {
+    const d = state.detail;
+    const v = d.views[d.activeView || 0] || d.views[0];
+    if (!v) return;
+    const blob = await (await fetch("/media/" + v.image)).blob();
+    runImageSearch(new File([blob], d.sku + ".png", { type: blob.type }));
+  });
+  $("classifyBtn")?.addEventListener("click", async (e) => {
+    e.target.disabled = true; e.target.textContent = "Classifying…";
+    try { await api("/api/admin/classify", { method: "POST" }); } catch (err) { console.error(err); }
+    openAdmin();
+  });
+  const csvZone = $("csvZone");
+  if (csvZone) {
+    csvZone.addEventListener("click", () => $("csvInput").click());
+    $("csvInput").addEventListener("change", async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const fd = new FormData(); fd.append("file", f);
+      try {
+        const r = await api("/api/admin/pricing", { method: "POST", body: fd });
+        $("pricingResult").textContent = `Imported · ${r.matched} matched · ${r.unmatched_count} unmatched`;
+      } catch (err) { $("pricingResult").textContent = "Import failed: " + err.message; }
+    });
+    csvZone.addEventListener("dragover", (e) => e.preventDefault());
+    csvZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const f = e.dataTransfer.files[0];
+      if (f) { const dt = new DataTransfer(); dt.items.add(f); $("csvInput").files = dt.files; $("csvInput").dispatchEvent(new Event("change")); }
+    });
+  }
+}
+
+async function openDetail(sku) {
+  try {
+    const d = await api("/api/sku/" + encodeURIComponent(sku));
+    d.activeView = 0;
+    state.detail = d;
+    state.prev = state.view;
+    state.view = "detail";
+    render();
+  } catch (e) { console.error(e); }
+}
+async function openAdmin() {
+  try { state.admin = await api("/api/admin/status"); } catch (e) { state.admin = {}; }
+  state.prev = state.view === "admin" ? state.prev : state.view;
+  state.view = "admin";
+  render();
+}
+
+/* ---------- top bar ---------- */
+$("homeBtn").addEventListener("click", goHome);
+$("gearBtn").addEventListener("click", openAdmin);
+$("searchForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const q = $("searchInput").value.trim();
+  if (q) runTextSearch(q);
+});
+$("photoBtn").addEventListener("click", () => $("fileInput").click());
+$("fileInput").addEventListener("change", (e) => {
+  const f = e.target.files[0];
+  if (f) runImageSearch(f);
+  e.target.value = "";
+});
+$("iqClear").addEventListener("click", goHome);
+
+/* ---------- boot ---------- */
+(async function boot() {
+  try { state.filterOptions = await api("/api/filters"); } catch (e) { state.filterOptions = {}; }
+  renderFilters();
+  render();
+  async function refreshStatus() {
+    try {
+      const s = await api("/api/admin/status");
+      const el = $("statusText");
+      el.textContent = `${s.skus_indexed.toLocaleString()} rings indexed`;
+      el.dataset.count = s.skus_indexed.toLocaleString();
+    } catch (e) { /* leave placeholder */ }
+  }
+  refreshStatus();
+  setInterval(refreshStatus, 30000);
+})();
+</script>
+</body>
+</html>

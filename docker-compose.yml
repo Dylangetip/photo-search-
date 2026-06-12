@@ -1,0 +1,13 @@
+services:
+  ringfinder:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8420}:8420"
+    volumes:
+      - ./data:/data
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SKU_REGEX: ${SKU_REGEX:-^([A-Za-z0-9-]+)}
+      INBOX_POLL_SECONDS: ${INBOX_POLL_SECONDS:-15}
+      CLASSIFY_ENABLED: ${CLASSIFY_ENABLED:-true}
