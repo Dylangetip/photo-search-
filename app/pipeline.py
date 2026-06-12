@@ -11,11 +11,20 @@ from PIL import Image
 from . import config
 from .models_ml import get_clip, get_rembg
 
+try:  # iPhone photos (HEIC) appear in real CAD folders — support them if available
+    import pillow_heif
+    pillow_heif.register_heif_opener()
+except ImportError:
+    pass
+
 
 # ---------------- SKU extraction ----------------
 
 def extract_sku(filename_stem: str) -> str | None:
-    m = re.match(config.SKU_REGEX, filename_stem)
+    """SKU_REGEX capture group 1 applied to the filename stem. re.search, not
+    re.match, so patterns can float (e.g. 'Copy of P.O. #140892 - Name' with
+    SKU_REGEX matching the P.O. number); anchor with ^ for prefix behavior."""
+    m = re.search(config.SKU_REGEX, filename_stem)
     if not m:
         return None
     try:

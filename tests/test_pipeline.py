@@ -77,3 +77,15 @@ class TestEmbeddings:
         embs = pipeline.embed_images([make_beauty()])
         assert embs.dtype == np.float32
         assert abs(np.linalg.norm(embs[0]) - 1.0) < 1e-4
+
+
+class TestPoNumberSku:
+    def test_po_regex_extracts_number(self, monkeypatch):
+        monkeypatch.setattr(config, "SKU_REGEX", r"P\.?O\.?\s*#?\s*(\d+)")
+        assert pipeline.extract_sku("Copy of P.O. #140892 - Josh Burtenshaw") == "140892"
+        assert pipeline.extract_sku("Copy of P.O. 147591 - Skyler Townsend") == "147591"
+        assert pipeline.extract_sku("random file") is None
+
+    def test_default_regex_still_anchored(self):
+        # default pattern has ^ so re.search keeps prefix behavior
+        assert pipeline.extract_sku("SW-2841_views") == "SW-2841"

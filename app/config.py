@@ -46,7 +46,7 @@ SHEET_AR_MAX = float(os.environ.get("SHEET_AR_MAX", "1.95"))
 SHEET_LINE_STD = float(os.environ.get("SHEET_LINE_STD", "12.0"))  # max std for a "uniform" divider band
 QUADRANT_INSET = float(os.environ.get("QUADRANT_INSET", "0.06"))  # crop each quadrant inward per edge
 
-IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
+IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 
 # Model weight caches live under /data/models so container recreation doesn't re-download.
 os.environ.setdefault("HF_HOME", str(MODELS_DIR / "hf"))

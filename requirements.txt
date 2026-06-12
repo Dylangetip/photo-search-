@@ -9,3 +9,4 @@ open_clip_torch==2.29.0
 rembg==2.0.61
 onnxruntime==1.20.1
 anthropic==0.43.0
+pillow-heif==1.4.0
