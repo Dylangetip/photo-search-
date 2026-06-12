@@ -41,10 +41,25 @@ QUERY_RERANK_WEIGHT = float(os.environ.get("QUERY_RERANK_WEIGHT", "0.25"))
 PRICE_IN_PER_MTOK = float(os.environ.get("PRICE_IN_PER_MTOK", "3.0"))
 PRICE_OUT_PER_MTOK = float(os.environ.get("PRICE_OUT_PER_MTOK", "15.0"))
 
+# CLIP model. ViT-B-32 is fast and small (spec default). ViT-L-14 separates
+# photo->CAD matches far better on CPU at higher latency — worth it if the box
+# can take it. Catalog embeddings are cached, so the cost is mostly per-query.
+CLIP_MODEL = os.environ.get("CLIP_MODEL", "ViT-B-32")
+CLIP_PRETRAINED = os.environ.get("CLIP_PRETRAINED", "laion2b_s34b_b79k")
+# Mean-center embeddings before matching (hubness fix; sharper ranking).
+CENTER_EMBEDDINGS = os.environ.get("CENTER_EMBEDDINGS", "true").lower() in ("1", "true", "yes")
+
 # Image processing
 VIEW_SIZE = 512          # longest side of derived view images (used for matching)
 DISPLAY_SIZE = 1100      # longest side of the whole-CAD image shown in the UI
 QUERY_RESIZE = 384       # downscale query images before rembg to stay under the latency target
+# Stone-focused query crop: isolates the engagement ring's center stone + head
+# from the hand and any stacked wedding band. Critical for finger/stack photos.
+QUERY_STONE_CROP = os.environ.get("QUERY_STONE_CROP", "true").lower() in ("1", "true", "yes")
+STONE_BRIGHT_PCTL = float(os.environ.get("STONE_BRIGHT_PCTL", "97"))  # brightness percentile for the stone
+STONE_RING_SCALE = float(os.environ.get("STONE_RING_SCALE", "3.6"))   # whole-ring box = stone extent x this
+STONE_HEAD_SCALE = float(os.environ.get("STONE_HEAD_SCALE", "1.9"))   # head/stone box = stone extent x this
+SKIN_DROP_FRACTION = float(os.environ.get("SKIN_DROP_FRACTION", "0.45"))  # >= this skin -> drop full crop
 # Type A (4-up CAD sheet) detection — env-tunable so the window can be adjusted
 # against real sheets without rebuilding. Real Sierra West sheets measured ~1.6-1.7;
 # single beauty renders are ~1.33 (4:3), so the windows don't overlap.

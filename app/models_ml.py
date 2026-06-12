@@ -20,12 +20,14 @@ def get_clip():
             if _clip is None:
                 import open_clip
                 import torch
+
+                from . import config
                 torch.set_num_threads(max(1, (torch.get_num_threads() or 4)))
                 model, _, preprocess = open_clip.create_model_and_transforms(
-                    "ViT-B-32", pretrained="laion2b_s34b_b79k"
+                    config.CLIP_MODEL, pretrained=config.CLIP_PRETRAINED
                 )
                 model.eval()
-                tokenizer = open_clip.get_tokenizer("ViT-B-32")
+                tokenizer = open_clip.get_tokenizer(config.CLIP_MODEL)
                 _clip = (model, preprocess, tokenizer)
     return _clip
 

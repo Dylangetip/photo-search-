@@ -143,7 +143,8 @@ class TestRestApi:
 
 
 class TestSearchMath:
-    def test_max_cosine_per_sku(self):
+    def test_max_cosine_per_sku(self, monkeypatch):
+        monkeypatch.setattr(config, "CENTER_EMBEDDINGS", False)  # raw-cosine mechanic
         db.upsert_sku("A")
         db.upsert_sku("B")
         v = np.zeros(4, dtype=np.float32); v[0] = 1

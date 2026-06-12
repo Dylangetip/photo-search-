@@ -49,6 +49,6 @@ def fresh_db():
     config.ensure_dirs()
     db.init_db()
     from app import search, worker
-    search._cache.update(sig=None, mat=None, meta=None)
+    search._cache.update(sig=None, cmat=None, mu=None, meta=None)
     worker.RECENT.clear()
     yield

@@ -73,14 +73,11 @@ async def search_image(file: UploadFile = File(...),
         return JSONResponse({"error": "Could not read the uploaded image."}, status_code=400)
 
     # Image search is 100% local — no API calls, no tokens. Reverse-image-search
-    # style: rembg -> white bg -> CLIP, plus a tighter center crop so a ring
-    # that's small in the frame (finger shots) still dominates one embedding.
-    cleaned = pipeline.preprocess_query(img)
-    crops = [cleaned]
-    w, h = cleaned.size
-    if min(w, h) > 64:
-        mx, my = int(w * 0.12), int(h * 0.12)
-        crops.append(cleaned.crop((mx, my, w - mx, h - my)))
+    # style: rembg -> white bg -> CLIP over several crops (full subject, center,
+    # and a stone-focused crop that isolates the ring head from a hand or a
+    # stacked wedding band), scored as best-match per catalog view.
+    crops = pipeline.query_crops(img)
+    cleaned = crops[0]
     vecs = pipeline.embed_images(crops)
     flt = _filters(metal_color, center_stone_shape, setting_type)
 

@@ -101,7 +101,8 @@ class TestLocalAttrs:
 
 
 class TestMultiCropSearch:
-    def test_2d_query_takes_best_crop(self):
+    def test_2d_query_takes_best_crop(self, monkeypatch):
+        monkeypatch.setattr(config, "CENTER_EMBEDDINGS", False)  # raw-cosine mechanic
         db.upsert_sku("A")
         v = np.zeros(4, dtype=np.float32); v[0] = 1.0
         db.add_view("A", "a.png", "single", v)

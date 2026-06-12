@@ -11,7 +11,13 @@ import numpy as np
 from . import db
 
 _cache_lock = threading.Lock()
-_cache = {"sig": None, "mat": None, "meta": None}
+_cache = {"sig": None, "cmat": None, "mu": None, "meta": None}
+
+
+def _normalize_rows(m: np.ndarray) -> np.ndarray:
+    n = np.linalg.norm(m, axis=1, keepdims=True)
+    n[n == 0] = 1.0
+    return m / n
 
 FILTER_FIELDS = ("metal_color", "center_stone_shape", "setting_type")
 
@@ -25,12 +31,31 @@ FILTER_OPTIONS = {
 
 
 def _matrix():
+    """Returns (centered_matrix, mu, meta). Mean-centering subtracts the average
+    catalog embedding so matching keys on what's DIFFERENT between rings, not the
+    'ring on white' component they all share — this fixes hubness (a few generic
+    CADs matching every query) and sharpens ranking, especially on hand/stack
+    photos. mu is None when centering is off."""
+    from . import config
     sig = db.views_signature()
     with _cache_lock:
         if _cache["sig"] != sig:
             mat, meta = db.all_embeddings()
-            _cache.update(sig=sig, mat=mat, meta=meta)
-        return _cache["mat"], _cache["meta"]
+            if mat.size and config.CENTER_EMBEDDINGS:
+                mu = mat.mean(axis=0)
+                mu = mu / (np.linalg.norm(mu) or 1.0)
+                cmat = _normalize_rows(mat - mu)
+            else:
+                mu, cmat = None, mat
+            _cache.update(sig=sig, cmat=cmat, mu=mu, meta=meta)
+        return _cache["cmat"], _cache["mu"], _cache["meta"]
+
+
+def _prep_query(vecs: np.ndarray, mu) -> np.ndarray:
+    vecs = np.atleast_2d(np.asarray(vecs, dtype=np.float32))
+    if mu is not None:
+        vecs = _normalize_rows(vecs - mu)
+    return vecs
 
 
 def _tags_of(row) -> dict:
@@ -87,12 +112,12 @@ def _build_results(best: dict, filters: dict, top_k: int) -> list[dict]:
 
 def search_by_embedding(query_vecs: np.ndarray, filters: dict, top_k: int = 12) -> list[dict]:
     """query_vecs: one [d] vector or several [n, d] (multi-crop) — scored as the
-    best match across crops. All vectors are L2-normalized, so dot = cosine."""
-    mat, meta = _matrix()
-    if mat.size == 0:
+    best match across crops, against the mean-centered catalog."""
+    cmat, mu, meta = _matrix()
+    if cmat.size == 0:
         return []
-    vecs = np.atleast_2d(np.asarray(query_vecs, dtype=np.float32))
-    scores = (mat @ vecs.T).max(axis=1)
+    vecs = _prep_query(query_vecs, mu)
+    scores = (cmat @ vecs.T).max(axis=1).clip(0.0, 1.0)  # centered cosine can go negative
     return _build_results(_best_per_sku(scores, meta), filters, top_k)
 
 
@@ -152,11 +177,11 @@ def _keyword_score(query: str, row) -> float:
 
 def search_by_text(query: str, filters: dict, top_k: int = 12) -> list[dict]:
     from .pipeline import embed_text
-    mat, meta = _matrix()
-    if mat.size == 0:
+    cmat, mu, meta = _matrix()
+    if cmat.size == 0:
         return []
-    tvec = embed_text(query)
-    clip_scores = mat @ tvec
+    tvec = _prep_query(embed_text(query), mu)[0]
+    clip_scores = cmat @ tvec
     best = _best_per_sku(clip_scores, meta)
 
     rows = db.get_skus(list(best.keys()))
