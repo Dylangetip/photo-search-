@@ -28,10 +28,13 @@ def extract_sku(filename_stem: str) -> str | None:
 # ---------------- Type A (4-up CAD sheet) detection ----------------
 
 def _uniform_line(band: np.ndarray, axis: int) -> bool:
-    """True if some line in the band is near-uniform (the sheet's dividing line)."""
-    # std along the line direction for each candidate line in the band
+    """True if some line in the band is near-uniform (the sheet's dividing line).
+
+    Handles both real-sheet divider styles: a thin grey rule and a plain white
+    gap between quadrants both read as a low-std line down the midline.
+    """
     stds = band.std(axis=axis)
-    return bool((stds < 8.0).any())
+    return bool((stds < config.SHEET_LINE_STD).any())
 
 
 def detect_sheet(img: Image.Image) -> bool:
