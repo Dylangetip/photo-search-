@@ -129,6 +129,14 @@ def sku_views(sku: str) -> list:
         ).fetchall()
 
 
+def sku_embeddings(sku: str) -> np.ndarray:
+    with connect() as conn:
+        rows = conn.execute("SELECT embedding FROM views WHERE sku = ? ORDER BY id", (sku,)).fetchall()
+    if not rows:
+        return np.zeros((0, 0), dtype=np.float32)
+    return np.stack([np.frombuffer(r["embedding"], dtype=np.float32) for r in rows])
+
+
 def set_tags(sku: str, tags: dict | None, status: str) -> None:
     with _lock, connect() as conn:
         conn.execute(

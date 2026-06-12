@@ -26,45 +26,61 @@ def extract_sku(filename_stem: str) -> str | None:
 
 
 # ---------------- Type A (4-up CAD sheet) detection ----------------
+#
+# Real CAD sheets are viewport captures: four panes separated by divider lines
+# (thin grey rules or plain gaps). The dividers are near — but not exactly at —
+# the midlines, and sheet aspect ratios vary (observed 1.42-1.67 against
+# singles at 1.33). So the AR gate is wide and the decisive test is finding a
+# near-uniform full-length line in BOTH orientations within the center band:
+# a single centered render always interrupts at least one orientation.
 
-def _uniform_line(band: np.ndarray, axis: int) -> bool:
-    """True if some line in the band is near-uniform (the sheet's dividing line).
+def _find_divider(g: np.ndarray, axis: int) -> int | None:
+    """Uniform full-length line within the center band (35-65%), preferring the
+    candidate CLOSEST TO CENTER — an empty pane margin can also be uniform, and
+    splitting at the centermost uniform line avoids cutting through a view.
+    axis=0: scan columns, returns x. axis=1: scan rows, returns y."""
+    n = g.shape[1] if axis == 0 else g.shape[0]
+    lo, hi = int(n * 0.35), int(n * 0.65)
+    stds = g[:, lo:hi].std(axis=0) if axis == 0 else g[lo:hi, :].std(axis=1)
+    candidates = np.where(stds < config.SHEET_LINE_STD)[0]
+    if len(candidates) == 0:
+        return None
+    center = n // 2 - lo
+    return lo + int(candidates[np.abs(candidates - center).argmin()])
 
-    Handles both real-sheet divider styles: a thin grey rule and a plain white
-    gap between quadrants both read as a low-std line down the midline.
-    """
-    stds = band.std(axis=axis)
-    return bool((stds < config.SHEET_LINE_STD).any())
+
+def find_sheet_dividers(img: Image.Image) -> tuple[int, int] | None:
+    """(x, y) divider position if the image reads as a 4-up sheet, else None."""
+    w, h = img.size
+    if h == 0:
+        return None
+    ar = w / h
+    if not (config.SHEET_AR_MIN <= ar <= config.SHEET_AR_MAX):
+        return None
+    g = np.asarray(img.convert("L"), dtype=np.float32)
+    x = _find_divider(g, axis=0)
+    y = _find_divider(g, axis=1)
+    return (x, y) if x is not None and y is not None else None
 
 
 def detect_sheet(img: Image.Image) -> bool:
-    """Type A: landscape AR ~1.6-1.8 AND near-uniform dividing lines at the midlines."""
-    w, h = img.size
-    if h == 0:
-        return False
-    ar = w / h
-    if not (config.SHEET_AR_MIN <= ar <= config.SHEET_AR_MAX):
-        return False
-    g = np.asarray(img.convert("L"), dtype=np.float32)
-    bw = max(2, int(w * 0.01))
-    bh = max(2, int(h * 0.01))
-    col_band = g[:, w // 2 - bw: w // 2 + bw]   # vertical dividing line -> uniform columns
-    row_band = g[h // 2 - bh: h // 2 + bh, :]   # horizontal dividing line -> uniform rows
-    return _uniform_line(col_band, axis=0) and _uniform_line(row_band, axis=1)
+    return find_sheet_dividers(img) is not None
 
 
-def split_quadrants(img: Image.Image) -> list[Image.Image]:
-    """Split a 4-up sheet into quadrants, cropping each inward ~6% per edge to
-    drop view labels, axis gizmos, and most annotation text."""
+def split_quadrants(img: Image.Image,
+                    dividers: tuple[int, int] | None = None) -> list[Image.Image]:
+    """Split a 4-up sheet at the detected dividers (midlines as fallback),
+    cropping each quadrant inward ~6% per edge to drop view labels, axis
+    gizmos, and most annotation text."""
     w, h = img.size
-    qw, qh = w // 2, h // 2
+    dx_div, dy_div = dividers if dividers else (w // 2, h // 2)
     inset = config.QUADRANT_INSET
+    boxes = [(0, 0, dx_div, dy_div), (dx_div, 0, w, dy_div),
+             (0, dy_div, dx_div, h), (dx_div, dy_div, w, h)]
     out = []
-    for qy in (0, 1):
-        for qx in (0, 1):
-            x0, y0 = qx * qw, qy * qh
-            dx, dy = int(qw * inset), int(qh * inset)
-            out.append(img.crop((x0 + dx, y0 + dy, x0 + qw - dx, y0 + qh - dy)))
+    for x0, y0, x1, y1 in boxes:
+        ix, iy = int((x1 - x0) * inset), int((y1 - y0) * inset)
+        out.append(img.crop((x0 + ix, y0 + iy, x1 - ix, y1 - iy)))
     return out
 
 

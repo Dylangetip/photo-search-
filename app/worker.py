@@ -56,14 +56,15 @@ def process_file(path: Path, forced_type: str | None = None) -> None:
 
     _record(path.name, sku, "processing")
 
+    dividers = pipeline.find_sheet_dividers(img)
     if forced_type == "sheet":
-        is_sheet = True
+        is_sheet = True          # dividers may be None -> midline fallback
     elif forced_type == "single":
         is_sheet = False
     else:
-        is_sheet = pipeline.detect_sheet(img)
+        is_sheet = dividers is not None
 
-    views = pipeline.split_quadrants(img) if is_sheet else [img]
+    views = pipeline.split_quadrants(img, dividers) if is_sheet else [img]
     source_type = "sheet_quadrant" if is_sheet else "single"
 
     db.upsert_sku(sku)
@@ -86,6 +87,9 @@ def process_file(path: Path, forced_type: str | None = None) -> None:
         for (out_path, _), emb in zip(new_paths, embeddings):
             db.add_view(sku, str(out_path.relative_to(config.DATA_DIR)), source_type, emb)
 
+    if new_paths:
+        local_tag_sku(sku)
+
     originals_dir = config.LIBRARY_DIR / sku / "originals"
     originals_dir.mkdir(parents=True, exist_ok=True)
     dest = originals_dir / path.name
@@ -94,6 +98,33 @@ def process_file(path: Path, forced_type: str | None = None) -> None:
     shutil.move(str(path), dest)
     _record(path.name, sku, "done")
     log.info("ingested %s -> %s (%d new views)", path.name, sku, len(new_paths))
+
+
+def local_tag_sku(sku: str) -> None:
+    """Zero-shot tags from the SKU's own view embeddings — free, local, instant.
+    Status stays 'pending' so API classification upgrades these tags whenever a
+    key is available; until then they power the attribute re-rank on searches.
+    Never overwrites API ('done') tags."""
+    if not config.LOCAL_ATTRS:
+        return
+    try:
+        row = db.get_sku(sku)
+        if row is None or row["tags_status"] == "done":
+            return
+        import numpy as np
+
+        from . import local_attrs
+        embs = db.sku_embeddings(sku)
+        if embs.size == 0:
+            return
+        mean = embs.mean(axis=0)
+        mean = mean / (np.linalg.norm(mean) or 1.0)
+        tags = {k: v for k, v in local_attrs.detect_attributes(mean).items()
+                if not k.startswith("_")}
+        if tags:
+            db.set_tags(sku, tags, "pending")
+    except Exception:
+        log.exception("local tagging failed for %s", sku)
 
 
 def classify_pending(limit: int | None = None) -> int:

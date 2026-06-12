@@ -41,8 +41,8 @@ QUERY_RESIZE = 384       # downscale query images before rembg to stay under the
 # Type A (4-up CAD sheet) detection — env-tunable so the window can be adjusted
 # against real sheets without rebuilding. Real Sierra West sheets measured ~1.6-1.7;
 # single beauty renders are ~1.33 (4:3), so the windows don't overlap.
-SHEET_AR_MIN = float(os.environ.get("SHEET_AR_MIN", "1.5"))
-SHEET_AR_MAX = float(os.environ.get("SHEET_AR_MAX", "1.9"))
+SHEET_AR_MIN = float(os.environ.get("SHEET_AR_MIN", "1.38"))
+SHEET_AR_MAX = float(os.environ.get("SHEET_AR_MAX", "1.95"))
 SHEET_LINE_STD = float(os.environ.get("SHEET_LINE_STD", "12.0"))  # max std for a "uniform" divider band
 QUADRANT_INSET = float(os.environ.get("QUADRANT_INSET", "0.06"))  # crop each quadrant inward per edge
 

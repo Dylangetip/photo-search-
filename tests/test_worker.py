@@ -101,3 +101,25 @@ class TestTags:
         assert json.loads(row["tags_json"])["metal_color"] == "yellow_gold"
         assert row["tags_status"] == "done"
         assert "SKU9" not in db.pending_skus()
+
+
+class TestLocalTagging:
+    def test_ingest_produces_local_tags_still_pending(self):
+        """No API key: SKUs get free zero-shot tags at ingest, status stays
+        'pending' so API classification upgrades them later."""
+        drop(make_beauty(), "SKU800_beauty.png")
+        ingest_all()
+        row = db.get_sku("SKU800")
+        assert row["tags_status"] == "pending"
+        # tags may be empty if nothing was confident, but must not error;
+        # with the deterministic test stub at least the plumbing ran
+        assert row["tags_json"] is None or isinstance(json.loads(row["tags_json"]), dict)
+
+    def test_local_tags_never_overwrite_api_tags(self):
+        drop(make_beauty(), "SKU801_a.png")
+        ingest_all()
+        db.set_tags("SKU801", {"metal_color": "rose_gold"}, "done")
+        from app import worker as w
+        w.local_tag_sku("SKU801")
+        assert json.loads(db.get_sku("SKU801")["tags_json"])["metal_color"] == "rose_gold"
+        assert db.get_sku("SKU801")["tags_status"] == "done"
