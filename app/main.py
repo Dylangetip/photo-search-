@@ -7,6 +7,8 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import numpy as np
+
 from fastapi import FastAPI, File, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -73,12 +75,17 @@ async def search_image(file: UploadFile = File(...),
         return JSONResponse({"error": "Could not read the uploaded image."}, status_code=400)
 
     # Image search is 100% local — no API calls, no tokens. Reverse-image-search
-    # style: rembg -> white bg -> CLIP over several crops (full subject, center,
-    # and a stone-focused crop that isolates the ring head from a hand or a
-    # stacked wedding band), scored as best-match per catalog view.
-    crops = pipeline.query_crops(img)
-    cleaned = crops[0]
-    vecs = pipeline.embed_images(crops)
+    # style: rembg -> white bg -> CLIP over role-tagged crops (full / stone /
+    # band), combined as a weighted sum with the BAND weighted highest.
+    role_crops = pipeline.query_crops(img)  # [(role, image), ...]
+    cleaned = role_crops[0][1]
+    all_vecs = pipeline.embed_images([im for _, im in role_crops])
+    role_vecs: dict[str, list] = {}
+    for (role, _), v in zip(role_crops, all_vecs):
+        role_vecs.setdefault(role, []).append(v)
+    role_vecs = {r: np.stack(vs) for r, vs in role_vecs.items()}
+    weights = {"band": config.WEIGHT_BAND, "stone": config.WEIGHT_STONE, "full": config.WEIGHT_FULL}
+    vecs = all_vecs  # for local attribute detection below
     flt = _filters(metal_color, center_stone_shape, setting_type)
 
     # Local zero-shot attribute read (CLIP text prompts — still no API):
@@ -93,11 +100,11 @@ async def search_image(file: UploadFile = File(...),
             log.warning("local attribute detection skipped: %s", e)
 
     if query_tags:
-        results = search.search_by_embedding(vecs, flt, top_k=36)
+        results = search.search_by_roles(role_vecs, weights, flt, top_k=36)
         results = search.rerank_with_query_tags(results, query_tags,
                                                 config.QUERY_RERANK_WEIGHT)
     else:
-        results = search.search_by_embedding(vecs, flt)
+        results = search.search_by_roles(role_vecs, weights, flt)
 
     # Query log: keep the cleaned query image + top result for later tuning.
     config.QUERIES_DIR.mkdir(parents=True, exist_ok=True)

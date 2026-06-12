@@ -121,6 +121,40 @@ def search_by_embedding(query_vecs: np.ndarray, filters: dict, top_k: int = 12) 
     return _build_results(_best_per_sku(scores, meta), filters, top_k)
 
 
+def search_by_roles(role_vecs: dict, weights: dict, filters: dict, top_k: int = 12) -> list[dict]:
+    """Score each query role (full / stone / band) separately against the
+    catalog, then combine per SKU as a WEIGHTED sum of per-role best matches.
+    Band is weighted highest, so band-shape agreement dominates ranking."""
+    cmat, mu, meta = _matrix()
+    if cmat.size == 0 or not role_vecs:
+        return []
+    # Per role: best cosine of (role's query crops) against every catalog view.
+    sims_by_role = {}
+    for role, vecs in role_vecs.items():
+        if vecs is None or len(vecs) == 0:
+            continue
+        v = _prep_query(vecs, mu)
+        sims_by_role[role] = (cmat @ v.T).max(axis=1)  # [n_views]
+    if not sims_by_role:
+        return []
+    wsum = sum(weights.get(r, 0.0) for r in sims_by_role) or 1.0
+    # Aggregate to per-SKU best per role, then weighted-combine.
+    per_sku: dict[str, dict] = {}
+    for i, (sku, path) in enumerate(meta):
+        d = per_sku.setdefault(sku, {})
+        for role, sims in sims_by_role.items():
+            s = float(sims[i])
+            if role not in d or s > d[role][0]:
+                d[role] = (s, path)
+    best: dict[str, tuple[float, str]] = {}
+    for sku, roled in per_sku.items():
+        score = sum(weights.get(r, 0.0) * v[0] for r, v in roled.items()) / wsum
+        # representative image = the highest weighted-contribution role's best view
+        path = max(roled.items(), key=lambda kv: weights.get(kv[0], 0.0) * kv[1][0])[1][1]
+        best[sku] = (max(0.0, min(1.0, score)), path)
+    return _build_results(best, filters, top_k)
+
+
 # Attribute weights for query-photo re-ranking: stone shape is the strongest
 # identity signal in a messy photo, then metal color, then setting.
 _AGREE_WEIGHTS = {"center_stone_shape": 0.45, "metal_color": 0.30, "setting_type": 0.25}

@@ -6,7 +6,7 @@ The same preprocessing funnel is used for ingestion and for query images.
 import re
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from . import config
 from .models_ml import get_clip, get_rembg
@@ -195,15 +195,29 @@ def _skin_fraction(rgb: Image.Image, rgba: Image.Image) -> float:
     return float(skin.sum()) / float(mask.sum())
 
 
-def query_crops(img: Image.Image) -> list[Image.Image]:
-    """Several query embeddings, scored best-match per catalog view (rembg once):
-      1. full subject on white          — clean product shots
-      2. WHOLE-RING crop around stone   — finger shots & stacks: isolates the
-                                          engagement ring at CAD-like framing
-      3. ring HEAD crop around stone    — stone shape + setting detail
-    On hand/stack shots the full crop embeds the hand and matches every CAD on
-    shared white background, so when skin dominates we DROP it and rely on the
-    stone-centered crops."""
+def _band_crop(rgba: Image.Image, cx: int, cy: int, extent: int) -> Image.Image:
+    """Whole-ring crop with the bright center stone masked to white, so the
+    embedding keys on the BAND/shank shape (split-shank, twisted, tapered,
+    pave-set vs plain) rather than the stone."""
+    white = Image.new("RGB", rgba.size, (255, 255, 255))
+    white.paste(rgba.convert("RGB"), mask=rgba.split()[-1])
+    r = int(extent * config.BAND_STONE_MASK)
+    ImageDraw.Draw(white).ellipse([cx - r, cy - r, cx + r, cy + r], fill=(255, 255, 255))
+    W, H = white.size
+    half = max(int(extent * config.STONE_RING_SCALE), min(W, H) // 9)
+    crop = white.crop((max(0, cx - half), max(0, cy - half),
+                       min(W, cx + half), min(H, cy + half)))
+    s = config.VIEW_SIZE / max(crop.size)
+    return crop.resize((max(1, round(crop.width * s)), max(1, round(crop.height * s))), Image.LANCZOS)
+
+
+def query_crops(img: Image.Image) -> list[tuple[str, Image.Image]]:
+    """Role-tagged query crops (rembg once). Roles are scored separately and
+    combined with per-role weights so the BAND can be prioritized:
+      full  — full subject on white (clean product shots; dropped on hand shots)
+      stone — ring head: center stone shape + setting
+      band  — whole ring with the stone masked: the band/shank shape
+    """
     img = img.convert("RGB")
     w, h = img.size
     if max(w, h) > config.QUERY_RESIZE:
@@ -211,23 +225,27 @@ def query_crops(img: Image.Image) -> list[Image.Image]:
         img = img.resize((round(w * s), round(h * s)), Image.LANCZOS)
     rgba = remove_background(img)
 
-    full = composite_crop_resize(rgba)
-    stone_crops = []
+    crops: list[tuple[str, Image.Image]] = []
+    skin = _skin_fraction(img, rgba)
+    stone_found = None
     if config.QUERY_STONE_CROP:
         try:
-            found = _find_stone(img, rgba)
-            if found is not None:
-                cx, cy, extent = found
-                stone_crops.append(_crop_around(rgba, cx, cy, int(extent * config.STONE_RING_SCALE)))
-                stone_crops.append(_crop_around(rgba, cx, cy, int(extent * config.STONE_HEAD_SCALE)))
+            stone_found = _find_stone(img, rgba)
         except Exception:
-            pass
+            stone_found = None
 
-    # Drop the hand-polluted full crop on clear finger/stack shots (only when we
-    # actually have stone crops to fall back on).
-    if stone_crops and _skin_fraction(img, rgba) >= config.SKIN_DROP_FRACTION:
-        return stone_crops
-    return [full] + stone_crops
+    # Drop the hand-polluted full crop on clear finger/stack shots.
+    if not (stone_found is not None and skin >= config.SKIN_DROP_FRACTION):
+        crops.append(("full", composite_crop_resize(rgba)))
+
+    if stone_found is not None:
+        cx, cy, extent = stone_found
+        crops.append(("stone", _crop_around(rgba, cx, cy, int(extent * config.STONE_HEAD_SCALE))))
+        crops.append(("band", _band_crop(rgba, cx, cy, extent)))
+
+    if not crops:  # nothing detected — fall back to the full subject
+        crops.append(("full", composite_crop_resize(rgba)))
+    return crops
 
 
 def preprocess_query(img: Image.Image) -> Image.Image:
