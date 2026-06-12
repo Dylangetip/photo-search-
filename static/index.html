@@ -337,7 +337,8 @@ async function runImageSearch(file) {
     const data = await api("/api/search/image?" + filterParams().toString(), { method: "POST", body: fd });
     state.results = data.results;
     state.queryPreview = data.query_preview;
-  } catch (e) { state.results = []; state.queryPreview = null; console.error(e); }
+    state.queryTags = data.query_tags || null;
+  } catch (e) { state.results = []; state.queryPreview = null; state.queryTags = null; console.error(e); }
   state.view = "results";
   render();
 }
@@ -411,11 +412,13 @@ function resultsHtml() {
   const isImage = state.mode === "image";
   let strip = "";
   if (isImage && state.queryPreview) {
+    const qChips = state.queryTags ? chipsHtml(state.queryTags, 6) : "";
     strip = `<div class="query-strip">
       <span class="qs-thumb"><img src="${state.queryThumb ? esc(state.queryThumb) : ""}" alt="original"></span>
       <span class="qs-arrow">→</span>
       <span class="qs-thumb"><img src="${esc(state.queryPreview)}" alt="cleaned"></span>
-      <span class="qs-caption">Photo cleaned for matching</span>
+      <span class="qs-caption">Photo cleaned for matching${qChips ? " · detected:" : ""}</span>
+      ${qChips}
     </div>`;
   }
   if (!state.results.length) {

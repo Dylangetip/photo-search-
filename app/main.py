@@ -72,9 +72,35 @@ async def search_image(file: UploadFile = File(...),
     except Exception:
         return JSONResponse({"error": "Could not read the uploaded image."}, status_code=400)
 
+    # Query-photo classification runs in parallel with preprocessing/embedding —
+    # the API call is network-bound while rembg/CLIP are CPU-bound.
+    classify_future = None
+    if config.QUERY_CLASSIFY and config.CLASSIFY_ENABLED and config.ANTHROPIC_API_KEY:
+        from concurrent.futures import ThreadPoolExecutor
+
+        from .classify import classify_query_image
+        _executor = ThreadPoolExecutor(max_workers=1)
+        classify_future = _executor.submit(classify_query_image, img)
+        _executor.shutdown(wait=False)
+
     cleaned = pipeline.preprocess_query(img)
     vec = pipeline.embed_images([cleaned])[0]
-    results = search.search_by_embedding(vec, _filters(metal_color, center_stone_shape, setting_type))
+    flt = _filters(metal_color, center_stone_shape, setting_type)
+
+    query_tags = None
+    if classify_future is not None:
+        try:
+            query_tags = classify_future.result(timeout=20)
+        except Exception as e:
+            log.warning("query classification skipped: %s", e)
+
+    if query_tags:
+        # Wider candidate pool, then blend in attribute agreement.
+        results = search.search_by_embedding(vec, flt, top_k=36)
+        results = search.rerank_with_query_tags(results, query_tags,
+                                                config.QUERY_RERANK_WEIGHT)
+    else:
+        results = search.search_by_embedding(vec, flt)
 
     # Query log: keep the cleaned query image + top result for later tuning.
     config.QUERIES_DIR.mkdir(parents=True, exist_ok=True)
@@ -90,7 +116,9 @@ async def search_image(file: UploadFile = File(...),
     buf = io.BytesIO()
     cleaned.save(buf, format="PNG")
     preview = base64.standard_b64encode(buf.getvalue()).decode()
-    return {"results": results, "query_preview": f"data:image/png;base64,{preview}"}
+    return {"results": results,
+            "query_preview": f"data:image/png;base64,{preview}",
+            "query_tags": query_tags}
 
 
 @app.get("/api/sku/{sku}")

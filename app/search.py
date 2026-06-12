@@ -89,6 +89,41 @@ def search_by_embedding(query_vec: np.ndarray, filters: dict, top_k: int = 12) -
     return _build_results(_best_per_sku(scores, meta), filters, top_k)
 
 
+# Attribute weights for query-photo re-ranking: stone shape is the strongest
+# identity signal in a messy photo, then metal color, then setting.
+_AGREE_WEIGHTS = {"center_stone_shape": 0.45, "metal_color": 0.30, "setting_type": 0.25}
+_UNINFORMATIVE = {None, "", "other", "none", "unclear"}
+
+
+def attribute_agreement(query_tags: dict, tags: dict) -> float | None:
+    """0..1 agreement between query-photo attributes and a catalog SKU's tags.
+    Returns None when there is nothing informative to compare."""
+    if not query_tags or not tags:
+        return None
+    total = got = 0.0
+    for field, wt in _AGREE_WEIGHTS.items():
+        q = query_tags.get(field)
+        if q in _UNINFORMATIVE:
+            continue
+        total += wt
+        if tags.get(field) == q:
+            got += wt
+    return got / total if total > 0 else None
+
+
+def rerank_with_query_tags(results: list[dict], query_tags: dict,
+                           weight: float, top_k: int = 12) -> list[dict]:
+    """Blend CLIP cosine with attribute agreement and re-sort.
+    SKUs without tags keep their cosine score unchanged (never penalized)."""
+    for r in results:
+        agree = attribute_agreement(query_tags, r.get("tags") or {})
+        if agree is not None:
+            r["score"] = round((1.0 - weight) * r["score"] + weight * agree, 4)
+            r["attr_match"] = round(agree, 2)
+    results.sort(key=lambda r: r["score"], reverse=True)
+    return results[:top_k]
+
+
 def _keyword_score(query: str, row) -> float:
     """Fraction of query tokens found in the SKU's tags_json (plus sku/name)."""
     tokens = [t for t in re.split(r"[^a-z0-9]+", query.lower()) if len(t) >= 2]

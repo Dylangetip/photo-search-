@@ -23,6 +23,13 @@ CLASSIFY_ENABLED = os.environ.get("CLASSIFY_ENABLED", "true").lower() in ("1", "
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 CLASSIFY_MODEL = os.environ.get("CLASSIFY_MODEL", "claude-sonnet-4-6")
 
+# Query-side classification: classify the customer's photo too, and blend
+# attribute agreement into the ranking. This is what bridges messy queries
+# (finger shots, Pinterest screenshots, ring stacks) to clean CAD renders.
+# Adds one API call (~1-2s) per image search; disable for raw-CLIP-only.
+QUERY_CLASSIFY = os.environ.get("QUERY_CLASSIFY", "true").lower() in ("1", "true", "yes")
+QUERY_RERANK_WEIGHT = float(os.environ.get("QUERY_RERANK_WEIGHT", "0.35"))
+
 # Image processing
 VIEW_SIZE = 512          # longest side of derived view images
 QUERY_RESIZE = 384       # downscale query images before rembg to stay under the latency target
