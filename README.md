@@ -145,15 +145,15 @@ backup. Restore = put it back and `docker compose up -d`.
   against CLIP *text* prompts — and confident detections give agreeing SKUs a
   bonus-only re-rank boost (never penalizing a strong visual match). The admin
   page shows API spend; image searches contribute $0.00 by construction.
-- **Embeddings**: `open_clip` **ViT-L-14** (`laion2b_s32b_b82k`) by default, CPU,
+- **Embeddings**: `open_clip` **ViT-B-32** (`laion2b_s34b_b79k`) by default, CPU,
   L2-normalized, stored as float32 BLOBs in SQLite. Mean-centered at match time
-  (subtracts the shared "ring on white" component — fixes hubness, sharpens
+  (subtracts the shared "ring on white" component — reduces hubness, sharpens
   ranking). Brute-force numpy cosine — correct and fast at ~1k SKUs; no vector DB.
-  - **RAM:** ViT-L-14 needs ~3–4 GB. Allocate that to Docker Desktop
-    (Settings → Resources). If the mini PC can't spare it, set
-    `CLIP_MODEL=ViT-B-32` and `CLIP_PRETRAINED=laion2b_s34b_b79k` in `.env` for
-    the smaller/faster model (lower match quality on hard photos).
-  - Changing the model means the catalog re-embeds on next start (one-time).
+  - **ViT-L-14** (`CLIP_MODEL=ViT-L-14`, `CLIP_PRETRAINED=laion2b_s32b_b82k`) is
+    available but **not** the default: on our test catalog it collapsed several
+    queries onto one ornate multi-stone "hub" ring. Try it only after verifying
+    it doesn't reintroduce that on your catalog; it also needs ~3–4 GB RAM.
+  - Changing the model re-embeds the catalog on next start (one-time).
 - **Background removal**: `rembg` with the lightweight `u2netp` model. Query
   images are downscaled to 384px before rembg to keep image search under the
   ~4s CPU target.
