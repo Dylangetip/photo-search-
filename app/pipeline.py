@@ -299,12 +299,19 @@ def embed_images(images: list[Image.Image]) -> np.ndarray:
     return feats.cpu().numpy().astype(np.float32)
 
 
-def embed_text(text: str) -> np.ndarray:
-    """CLIP-embed a text query. Returns L2-normalized float32 [d]."""
+def embed_text(text: str):
+    """CLIP-embed a text query -> L2-normalized float32 [d], or None if the
+    active model has no usable text tower (text search and the attribute
+    re-rank then fall back to keyword-only)."""
     import torch
     model, _, tokenizer = get_clip()
-    tokens = tokenizer([text])
-    with torch.no_grad():
-        feats = model.encode_text(tokens)
-        feats = feats / feats.norm(dim=-1, keepdim=True)
-    return feats.cpu().numpy().astype(np.float32)[0]
+    if tokenizer is None:
+        return None
+    try:
+        tokens = tokenizer([text])
+        with torch.no_grad():
+            feats = model.encode_text(tokens)
+            feats = feats / feats.norm(dim=-1, keepdim=True)
+        return feats.cpu().numpy().astype(np.float32)[0]
+    except Exception:
+        return None  # tokenizer present but unusable (e.g. version mismatch)

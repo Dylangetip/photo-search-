@@ -36,7 +36,51 @@ and emits a "summary" embedding intended for image-level retrieval.
 | round solitaire (4) | 1779991973885 (round) | 147591 (marquise) | **CLIP clearly better** |
 | princess stack | 1778688762928 | 1778688762928 | tie |
 
-## Conclusion — not adopted
+## Also tested: Marqo-FashionSigLIP (the *right class* of model)
+
+C-RADIO is a general backbone; the right tool for "photo → product catalog" is a
+**retrieval-tuned embedding model**, ideally domain-matched. Rings are a fashion
+category, so **Marqo-FashionSigLIP** (SigLIP fine-tuned for fashion product
+search) is the strongest candidate — and unlike C-RADIO it keeps a text tower.
+
+| | ViT-B-32 (default) | Marqo-FashionSigLIP | C-RADIOv4-SO400M |
+|---|---|---|---|
+| Params | ~88M | 203M | 431M |
+| CPU embed | ~0.1 s | ~0.15 s | ~1.4 s |
+| Text tower | yes | yes (needs HF tokenizer) | no |
+| Built for | general | **fashion product retrieval** | general backbone |
+
+On the **37-ring** test it was **roughly even with CLIP and showed its own
+hubness** (one oval-solitaire CAD became #1 for three different queries; it also
+read a round solitaire as oval and missed the princess stack). Marqo's published
+benchmarks show FashionSigLIP beating generic CLIP/SigLIP on fashion retrieval by
+large margins — but that can't be reproduced on 37 unlabeled rings.
+
+## The real finding: the model is not the current bottleneck
+
+**Four models** (CLIP ViT-B-32, ViT-L-14, C-RADIOv4, FashionSigLIP) all land
+"roughly even / mixed" on these 5 queries. The limiters are:
+1. **Tiny test catalog (37 rings)** — many queries have no close match, so the
+   #1 is semi-arbitrary among mediocre options.
+2. **No ground-truth labels** — we can't measure which model is actually better;
+   we're eyeballing 5 hard photos.
+
+Swapping models is premature optimization until there's (a) the real ~1k-ring
+catalog and (b) ~10–20 labeled query→CAD pairs to A/B against.
+
+## How to A/B a different model (no code change)
+
+The image embedder is swappable via env vars (re-ingest after switching):
+```
+# any open_clip checkpoint, including HF retrieval models:
+CLIP_MODEL=hf-hub:Marqo/marqo-fashionSigLIP
+# (leave CLIP_PRETRAINED unset for hf-hub: models)
+```
+If the chosen model's text tower can't load on the installed transformers,
+**image search still works**; text search and the attribute re-rank degrade to
+keyword-only automatically.
+
+## Conclusion — not adopted (yet)
 
 C-RADIOv4 is **not** a clear improvement for this photo→CAD task: roughly even
 on the real queries (one win each), while costing markedly more on CPU, being

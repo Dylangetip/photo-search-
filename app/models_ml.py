@@ -23,11 +23,23 @@ def get_clip():
 
                 from . import config
                 torch.set_num_threads(max(1, (torch.get_num_threads() or 4)))
-                model, _, preprocess = open_clip.create_model_and_transforms(
-                    config.CLIP_MODEL, pretrained=config.CLIP_PRETRAINED
-                )
+                # `hf-hub:Org/Model` loads an open_clip-compatible HF checkpoint
+                # (e.g. Marqo/marqo-fashionSigLIP, a fashion-retrieval-tuned
+                # model) with no separate `pretrained` tag.
+                if config.CLIP_MODEL.startswith("hf-hub:"):
+                    model, _, preprocess = open_clip.create_model_and_transforms(config.CLIP_MODEL)
+                else:
+                    model, _, preprocess = open_clip.create_model_and_transforms(
+                        config.CLIP_MODEL, pretrained=config.CLIP_PRETRAINED
+                    )
                 model.eval()
-                tokenizer = open_clip.get_tokenizer(config.CLIP_MODEL)
+                # Text tower is optional: some retrieval checkpoints need an HF
+                # tokenizer (transformers). If it can't load, image search still
+                # works and text search falls back to keyword-only.
+                try:
+                    tokenizer = open_clip.get_tokenizer(config.CLIP_MODEL)
+                except Exception:
+                    tokenizer = None
                 _clip = (model, preprocess, tokenizer)
     return _clip
 

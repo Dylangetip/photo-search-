@@ -216,7 +216,17 @@ def search_by_text(query: str, filters: dict, top_k: int = 12) -> list[dict]:
     cmat, mu, meta = _matrix()
     if cmat.size == 0:
         return []
-    tvec = _prep_query(embed_text(query), mu)[0]
+    tvec_raw = embed_text(query)
+    rows_all = None
+    if tvec_raw is None:
+        # No text tower on the active model — keyword-only over tags/name/sku.
+        rows_all = db.get_skus([sku for sku, _ in meta])
+        first_path = {}
+        for sku, path in meta:
+            first_path.setdefault(sku, path)
+        scored = {sku: (_keyword_score(query, rows_all.get(sku)), p) for sku, p in first_path.items()}
+        return _build_results(scored, filters, top_k)
+    tvec = _prep_query(tvec_raw, mu)[0]
     clip_scores = cmat @ tvec
     best = _best_per_sku(clip_scores, meta)
 

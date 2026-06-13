@@ -67,7 +67,11 @@ def _field_matrix(field: str) -> tuple[list[str], np.ndarray]:
                 from .pipeline import embed_text
                 values, rows = [], []
                 for value, prompts in PROMPT_SETS[field].items():
-                    embs = np.stack([embed_text(p) for p in prompts])
+                    vecs = [embed_text(p) for p in prompts]
+                    if any(v is None for v in vecs):
+                        raise RuntimeError("active model has no text tower; "
+                                           "zero-shot attribute detection disabled")
+                    embs = np.stack(vecs)
                     mean = embs.mean(axis=0)
                     mean = mean / np.linalg.norm(mean)
                     values.append(value)
