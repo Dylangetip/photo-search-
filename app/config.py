@@ -41,11 +41,13 @@ QUERY_RERANK_WEIGHT = float(os.environ.get("QUERY_RERANK_WEIGHT", "0.25"))
 PRICE_IN_PER_MTOK = float(os.environ.get("PRICE_IN_PER_MTOK", "3.0"))
 PRICE_OUT_PER_MTOK = float(os.environ.get("PRICE_OUT_PER_MTOK", "15.0"))
 
-# CLIP model. ViT-B-32 is fast and small (spec default). ViT-L-14 separates
-# photo->CAD matches far better on CPU at higher latency — worth it if the box
-# can take it. Catalog embeddings are cached, so the cost is mostly per-query.
-CLIP_MODEL = os.environ.get("CLIP_MODEL", "ViT-B-32")
-CLIP_PRETRAINED = os.environ.get("CLIP_PRETRAINED", "laion2b_s34b_b79k")
+# CLIP model. ViT-L-14 separates photo->CAD matches markedly better (on real
+# queries it surfaced the design-correct ring from rank ~22 to ~7) and runs on
+# CPU at ~0.4s/embed; it needs ~3-4 GB RAM (allocate that to Docker Desktop).
+# If the box can't spare the RAM, set CLIP_MODEL=ViT-B-32 +
+# CLIP_PRETRAINED=laion2b_s34b_b79k for the smaller, faster model.
+CLIP_MODEL = os.environ.get("CLIP_MODEL", "ViT-L-14")
+CLIP_PRETRAINED = os.environ.get("CLIP_PRETRAINED", "laion2b_s32b_b82k")
 # Mean-center embeddings before matching (hubness fix; sharper ranking).
 CENTER_EMBEDDINGS = os.environ.get("CENTER_EMBEDDINGS", "true").lower() in ("1", "true", "yes")
 
