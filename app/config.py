@@ -66,10 +66,13 @@ STONE_HEAD_SCALE = float(os.environ.get("STONE_HEAD_SCALE", "1.9"))   # head/sto
 SKIN_DROP_FRACTION = float(os.environ.get("SKIN_DROP_FRACTION", "0.45"))  # >= this skin -> drop full crop
 BAND_STONE_MASK = float(os.environ.get("BAND_STONE_MASK", "0.85"))  # mask radius (x stone extent) for band crop
 
-# Per-role match weights — BAND is weighted highest: staff care most about
-# matching the engagement ring's band/shank shape, then the stone, then overall.
-WEIGHT_BAND = float(os.environ.get("WEIGHT_BAND", "0.45"))
-WEIGHT_STONE = float(os.environ.get("WEIGHT_STONE", "0.30"))
+# Per-role match weights. Band is weighted high (staff care most about band
+# shape) but NOT highest: the band crop from casual finger/stack photos is too
+# noisy to lead — weighting it above the stone discarded the reliable stone-
+# shape signal and broke matches (e.g. a princess stack matching a round
+# cluster). Stone leads for shape reliability; band is a strong second.
+WEIGHT_STONE = float(os.environ.get("WEIGHT_STONE", "0.40"))
+WEIGHT_BAND = float(os.environ.get("WEIGHT_BAND", "0.35"))
 WEIGHT_FULL = float(os.environ.get("WEIGHT_FULL", "0.25"))
 # Type A (4-up CAD sheet) detection — env-tunable so the window can be adjusted
 # against real sheets without rebuilding. Real Sierra West sheets measured ~1.6-1.7;
