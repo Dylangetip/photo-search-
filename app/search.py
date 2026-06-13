@@ -155,11 +155,16 @@ def search_by_roles(role_vecs: dict, weights: dict, filters: dict, top_k: int = 
     return _build_results(best, filters, top_k)
 
 
-# Attribute weights for query-photo re-ranking. Shape is the most reliable
-# signal; metal is kept moderate so a common metal (e.g. white gold) can't pull
-# an unrelated design to the top; setting is slightly reduced since bezel/
-# solitaire/halo is the least reliable zero-shot read.
-_AGREE_WEIGHTS = {"center_stone_shape": 0.45, "metal_color": 0.30, "setting_type": 0.25}
+# Attribute weights for query-photo re-ranking. Stone shape and side-stone
+# configuration are the most reliable AND most design-defining signals (staff
+# care a lot about both the center stone and the side stones); metal is moderate;
+# generic setting type (bezel/prong) is least reliable so it's kept low.
+_AGREE_WEIGHTS = {
+    "center_stone_shape": 0.35,
+    "side_stone_style": 0.30,
+    "metal_color": 0.20,
+    "setting_type": 0.15,
+}
 _UNINFORMATIVE = {None, "", "other", "none", "unclear"}
 
 

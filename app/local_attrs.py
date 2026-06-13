@@ -47,6 +47,18 @@ PROMPT_SETS: dict[str, dict[str, list[str]]] = {
         "bezel": ["a bezel set ring with the diamond surrounded by a metal rim"],
         "eternity": ["an eternity band ring with diamonds all the way around"],
     },
+    # Side-stone configuration — the arrangement of accent stones around the
+    # center stone. A major design dimension on its own (separate from setting),
+    # and reliably read zero-shot.
+    "side_stone_style": {
+        "solitaire": ["a solitaire ring with a single center diamond and no side stones",
+                      "a plain engagement ring with one diamond and nothing beside it"],
+        "three_stone": ["a three stone ring with one stone on each side of the center diamond",
+                        "an engagement ring with two side stones flanking the center"],
+        "halo": ["a halo ring with a ring of small diamonds surrounding the center stone"],
+        "cluster": ["a ring with small accent diamonds clustered beside the center stone",
+                    "an engagement ring with a cluster of small side diamonds"],
+    },
 }
 
 # Acceptance thresholds: softmax(temperature * cosine) over the field's values;
