@@ -56,7 +56,9 @@ QUERY_RESIZE = 384       # downscale query images before rembg to stay under the
 # Stone-focused query crop: isolates the engagement ring's center stone + head
 # from the hand and any stacked wedding band. Critical for finger/stack photos.
 QUERY_STONE_CROP = os.environ.get("QUERY_STONE_CROP", "true").lower() in ("1", "true", "yes")
-STONE_BRIGHT_PCTL = float(os.environ.get("STONE_BRIGHT_PCTL", "97"))  # brightness percentile for the stone
+STONE_VALUE_MIN = float(os.environ.get("STONE_VALUE_MIN", "175"))   # stone is bright (HSV value >= this)
+STONE_SAT_MAX = float(os.environ.get("STONE_SAT_MAX", "55"))        # ...and desaturated (white, not skin)
+STONE_MIN_EXTENT_FRAC = float(os.environ.get("STONE_MIN_EXTENT_FRAC", "0.07"))  # reject tiny glints
 STONE_RING_SCALE = float(os.environ.get("STONE_RING_SCALE", "3.6"))   # whole-ring box = stone extent x this
 STONE_HEAD_SCALE = float(os.environ.get("STONE_HEAD_SCALE", "1.9"))   # head/stone box = stone extent x this
 SKIN_DROP_FRACTION = float(os.environ.get("SKIN_DROP_FRACTION", "0.45"))  # >= this skin -> drop full crop

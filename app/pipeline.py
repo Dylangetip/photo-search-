@@ -145,27 +145,37 @@ def preprocess_view(img: Image.Image) -> Image.Image:
 
 
 def _find_stone(rgb: Image.Image, rgba: Image.Image):
-    """Locate the center stone: the largest dense bright blob inside the subject.
-    Returns (cx, cy, stone_extent_px) or None. The diamond reflects far more
-    light than skin or metal, so the top brightness percentile within the
-    subject mask, largest connected component, is a robust locator."""
-    alpha = np.asarray(rgba.split()[-1])
-    gray = np.asarray(rgb.convert("L")).astype(np.float32)
-    mask = alpha > 10
-    if mask.sum() < 200:
-        return None
-    thr = np.percentile(gray[mask], config.STONE_BRIGHT_PCTL)
-    bright = mask & (gray >= thr)
-    if bright.sum() < 30:
-        return None
+    """Locate the center stone: the largest WHITE (bright + desaturated) region
+    inside the subject. Returns (cx, cy, stone_extent_px) or None.
+
+    Whiteness (not raw brightness) is key: a diamond and its metal setting are
+    bright AND colorless, while skin — including nail/skin specular highlights
+    that fooled a pure-brightness detector — keeps a skin hue. Faceted stones
+    are merged with a morphological close, and an implausibly small or off
+    detection returns None so the caller can fall back to the full crop."""
     from scipy import ndimage
-    labels, n = ndimage.label(bright)
+
+    a = np.asarray(rgba.split()[-1])
+    mask = a > 10
+    if mask.sum() < 400:
+        return None
+    hsv = np.asarray(rgb.convert("HSV"))
+    s, v = hsv[..., 1].astype(np.float32), hsv[..., 2].astype(np.float32)
+    white = mask & (v >= config.STONE_VALUE_MIN) & (s <= config.STONE_SAT_MAX)
+    if white.sum() < 40:
+        return None
+    # Merge faceted highlights into one stone blob, then take the largest.
+    white = ndimage.binary_closing(white, structure=np.ones((5, 5)), iterations=2)
+    labels, n = ndimage.label(white)
     if n == 0:
         return None
-    sizes = ndimage.sum(bright, labels, range(1, n + 1))
+    sizes = ndimage.sum(white, labels, range(1, n + 1))
     blob = labels == (int(np.argmax(sizes)) + 1)
     ys, xs = np.where(blob)
     extent = max(xs.max() - xs.min() + 1, ys.max() - ys.min() + 1)
+    # Reject implausibly small detections (a speck of glare, not the stone).
+    if extent < max(12, min(rgb.size) * config.STONE_MIN_EXTENT_FRAC):
+        return None
     return int(xs.mean()), int(ys.mean()), int(extent)
 
 
