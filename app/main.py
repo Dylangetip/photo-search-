@@ -77,24 +77,24 @@ async def search_image(file: UploadFile = File(...),
     # Image search is 100% local — no API calls, no tokens. Reverse-image-search
     # style: rembg -> white bg -> CLIP over role-tagged crops (full / stone /
     # band), combined as a weighted sum with the BAND weighted highest.
-    role_crops = pipeline.query_crops(img)  # [(role, image), ...]
-    cleaned = role_crops[0][1]
+    role_crops, cleaned = pipeline.query_crops(img)  # ([(role, image), ...], preview)
     all_vecs = pipeline.embed_images([im for _, im in role_crops])
     role_vecs: dict[str, list] = {}
     for (role, _), v in zip(role_crops, all_vecs):
         role_vecs.setdefault(role, []).append(v)
     role_vecs = {r: np.stack(vs) for r, vs in role_vecs.items()}
     weights = {"band": config.WEIGHT_BAND, "stone": config.WEIGHT_STONE, "full": config.WEIGHT_FULL}
-    vecs = all_vecs  # for local attribute detection below
     flt = _filters(metal_color, center_stone_shape, setting_type)
 
-    # Local zero-shot attribute read (CLIP text prompts — still no API):
-    # confident fields re-rank the candidate pool by attribute agreement.
+    # Local zero-shot attribute read (CLIP text prompts — still no API): detect
+    # from the whole-ring view (full preferred, else the head crop — never the
+    # band crop, which has the stone masked).
     query_tags = None
     if config.LOCAL_ATTRS:
         try:
             from . import local_attrs
-            detected = local_attrs.detect_attributes(vecs[0])
+            attr_role = "full" if "full" in role_vecs else ("stone" if "stone" in role_vecs else next(iter(role_vecs)))
+            detected = local_attrs.detect_attributes(role_vecs[attr_role][0])
             query_tags = {k: v for k, v in detected.items() if not k.startswith("_")} or None
         except Exception as e:
             log.warning("local attribute detection skipped: %s", e)

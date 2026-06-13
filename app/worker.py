@@ -63,6 +63,7 @@ def process_file(path: Path, forced_type: str | None = None,
     try:
         img = Image.open(path)
         img.load()
+        img = pipeline.orient(img)  # honor EXIF rotation (phone-photo CAD exports)
     except Exception as e:
         _fail(path, f"Could not read image: {e}")
         return

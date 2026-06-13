@@ -89,3 +89,27 @@ class TestPoNumberSku:
     def test_default_regex_still_anchored(self):
         # default pattern has ^ so re.search keeps prefix behavior
         assert pipeline.extract_sku("SW-2841_views") == "SW-2841"
+
+
+class TestExifOrientation:
+    def test_orient_applies_exif(self):
+        import io
+        # landscape 100x50, tagged orientation 6 (rotate 90) -> should become 50x100
+        img = Image.new("RGB", (100, 50), (200, 60, 60))
+        exif = img.getexif(); exif[274] = 6
+        buf = io.BytesIO(); img.save(buf, "JPEG", exif=exif)
+        loaded = Image.open(io.BytesIO(buf.getvalue()))
+        assert loaded.size == (100, 50)            # stored landscape
+        assert pipeline.orient(loaded).size == (50, 100)  # honored rotation
+
+    def test_orient_noop_without_exif(self):
+        img = Image.new("RGB", (80, 40))
+        assert pipeline.orient(img).size == (80, 40)
+
+
+class TestQueryCropsContract:
+    def test_returns_roles_and_preview(self):
+        crops, preview = pipeline.query_crops(make_beauty())
+        assert isinstance(preview, Image.Image)
+        roles = [r for r, _ in crops]
+        assert "full" in roles or "stone" in roles

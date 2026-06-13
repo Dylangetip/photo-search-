@@ -6,7 +6,7 @@ The same preprocessing funnel is used for ingestion and for query images.
 import re
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 from . import config
 from .models_ml import get_clip, get_rembg
@@ -16,6 +16,16 @@ try:  # iPhone photos (HEIC) appear in real CAD folders — support them if avai
     pillow_heif.register_heif_opener()
 except ImportError:
     pass
+
+
+def orient(img: Image.Image) -> Image.Image:
+    """Apply EXIF orientation. Phone photos (queries and some CAD exports) store
+    the image landscape with a rotation flag; without this they're processed
+    sideways — wrecking background removal, matching, and the saved display."""
+    try:
+        return ImageOps.exif_transpose(img)
+    except Exception:
+        return img
 
 
 # ---------------- SKU extraction ----------------
@@ -221,19 +231,21 @@ def _band_crop(rgba: Image.Image, cx: int, cy: int, extent: int) -> Image.Image:
     return crop.resize((max(1, round(crop.width * s)), max(1, round(crop.height * s))), Image.LANCZOS)
 
 
-def query_crops(img: Image.Image) -> list[tuple[str, Image.Image]]:
-    """Role-tagged query crops (rembg once). Roles are scored separately and
-    combined with per-role weights so the BAND can be prioritized:
+def query_crops(img: Image.Image) -> tuple[list[tuple[str, Image.Image]], Image.Image]:
+    """Returns (role_crops, preview). Role crops (rembg once) are scored
+    separately and combined with per-role weights so the BAND is prioritized:
       full  — full subject on white (clean product shots; dropped on hand shots)
       stone — ring head: center stone shape + setting
       band  — whole ring with the stone masked: the band/shank shape
-    """
-    img = img.convert("RGB")
+    `preview` is always the full cleaned subject — for the UI preview and for
+    attribute detection, regardless of which crops scored."""
+    img = orient(img).convert("RGB")
     w, h = img.size
     if max(w, h) > config.QUERY_RESIZE:
         s = config.QUERY_RESIZE / max(w, h)
         img = img.resize((round(w * s), round(h * s)), Image.LANCZOS)
     rgba = remove_background(img)
+    full_subject = composite_crop_resize(rgba)
 
     crops: list[tuple[str, Image.Image]] = []
     skin = _skin_fraction(img, rgba)
@@ -245,17 +257,22 @@ def query_crops(img: Image.Image) -> list[tuple[str, Image.Image]]:
             stone_found = None
 
     # Drop the hand-polluted full crop on clear finger/stack shots.
-    if not (stone_found is not None and skin >= config.SKIN_DROP_FRACTION):
-        crops.append(("full", composite_crop_resize(rgba)))
+    keep_full = not (stone_found is not None and skin >= config.SKIN_DROP_FRACTION)
+    if keep_full:
+        crops.append(("full", full_subject))
 
+    ring_crop = None
     if stone_found is not None:
         cx, cy, extent = stone_found
+        ring_crop = _crop_around(rgba, cx, cy, int(extent * config.STONE_RING_SCALE))
         crops.append(("stone", _crop_around(rgba, cx, cy, int(extent * config.STONE_HEAD_SCALE))))
         crops.append(("band", _band_crop(rgba, cx, cy, extent)))
 
     if not crops:  # nothing detected — fall back to the full subject
-        crops.append(("full", composite_crop_resize(rgba)))
-    return crops
+        crops.append(("full", full_subject))
+    # Preview: the isolated ring on hand shots, else the cleaned full subject.
+    preview = full_subject if keep_full or ring_crop is None else ring_crop
+    return crops, preview
 
 
 def preprocess_query(img: Image.Image) -> Image.Image:
