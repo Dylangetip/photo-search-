@@ -1,0 +1,9 @@
+# Never commit store data - these hold customer names, addresses and phones.
+*.accdb
+*.laccdb
+*.btr
+*.BTR
+*.csv
+GP_Import_log.txt
+gp_import.lock
+gp_assigned_ids.csv

@@ -1,0 +1,120 @@
+GP -> CLARITY IMPORT - RUN INSTRUCTIONS (local copies on a PC)
+==============================================================
+
+WHAT THIS IS: a one-shot import that adds old Great Plains sales history into
+the Clarity store databases. To avoid fighting locks on the live share, you
+copy the databases down to this PC, run the import against those copies, then
+copy them back up.
+
+It only ADDS records. It backs up every database before writing, and it is
+safe to run again - it skips anything already imported.
+
+FOLDER
+------
+Everything lives in ONE folder, and the script only ever looks in its own
+folder - there is no searching:
+
+  C:\Users\bwilde\Desktop\GP\
+      GP_ImportAll.ps1
+      Run_GP_ImportAll_32bit.bat   (or the 64bit one)
+      import_append_history.csv
+      import_new_customers.csv
+      slips_1ORM.csv
+      slips_2SDY.csv
+      slips_3MRY.csv
+
+Then copy the databases in, one of two ways.
+
+  ALL THREE STORES AT ONCE - keep the store folders:
+      C:\Users\bwilde\Desktop\GP\1ORM\primary.accdb
+      C:\Users\bwilde\Desktop\GP\1ORM\secondary.accdb
+      C:\Users\bwilde\Desktop\GP\2SDY\primary.accdb
+      C:\Users\bwilde\Desktop\GP\2SDY\secondary.accdb
+      C:\Users\bwilde\Desktop\GP\3MRY\primary.accdb
+      C:\Users\bwilde\Desktop\GP\3MRY\secondary.accdb
+
+  ONE STORE AT A TIME - files sit right in the GP folder:
+      C:\Users\bwilde\Desktop\GP\primary.accdb
+      C:\Users\bwilde\Desktop\GP\secondary.accdb
+    and you must tell it which store it is (see step 3).
+
+PRIMARY AND SECONDARY: copy down BOTH files for a store. The script opens both
+and works out which one holds each table, so it does not matter how Clarity
+splits them. If a table is in both, it uses primary.
+
+STEPS
+-----
+1. Close Clarity and Access on this PC.
+
+2. Copy the store database files down from the server into the GP folder,
+   using one of the two layouts above.
+
+3. Double-click the .bat that matches your Office:
+     Run_GP_ImportAll_32bit.bat   - 32-bit Office (most common)
+     Run_GP_ImportAll_64bit.bat   - 64-bit Office
+   If you are doing ONE store at a time, run it from a command prompt with
+   the store name instead:
+     Run_GP_ImportAll_32bit.bat -Store 1ORM
+
+4. It lists the database files it found and which one holds each table.
+   Sanity-check that list, then type  GO  and press Enter.
+
+5. Watch the first couple of minutes. You should see, in order:
+     - "Verified: all database files are free."
+     - "Mapping which database holds which table..."
+     - "Backup 1ORM|primary -> ..."
+     - "Preloading lookup caches..."
+     - "STAGE 1: notes + customers"
+   Once customer progress lines are ticking up it is healthy. Leave it until
+   it prints  === RUN COMPLETE ===
+
+6. Spot-check a few customers and a few old sales slips in Clarity.
+
+7. Copy the database files back up to the server. Do NOT copy back the
+   *backup_*.accdb files - those are just the safety copies.
+
+8. Send back GP_Import_log.txt from this folder.
+
+RUNNING ONE STORE AT A TIME
+---------------------------
+A customer has to end up with the SAME ID in all three stores. When you run
+store-by-store, the script cannot see the other stores, so it writes every ID
+it hands out into:
+
+    gp_assigned_ids.csv
+
+KEEP THAT FILE in the folder between runs. It is what makes the second and
+third store agree with the first. If you delete it, later stores will invent
+new IDs and the same person will end up with different IDs per store.
+
+Purchase-history notes are only written at Orem, so they are done on the run
+that includes 1ORM.
+
+IF SOMETHING GOES WRONG
+-----------------------
+* "STOP: the Microsoft Access engine (ACE) is not available":
+  Nothing was changed. Install "Microsoft Access Database Engine 2010
+  Redistributable" from microsoft.com. The bitness must match - if you ran the
+  32-bit .bat, install AccessDatabaseEngine.exe (the one WITHOUT _X64). Then
+  run again.
+
+* "STOP: these tables were not found in primary or secondary":
+  Nothing was changed. A database file is missing or the wrong one got copied
+  down. Check that both primary.accdb and secondary.accdb came over for that
+  store.
+
+* "STOP: still held open by some program":
+  Nothing was changed. Close Clarity/Access on this PC and run again.
+
+* "found primary.accdb in this folder but not which store it belongs to":
+  You used the one-store layout. Re-run with -Store 1ORM (or 2SDY / 3MRY).
+
+* If the run is interrupted (reboot, closed window): just run it again. It
+  picks up where it left off and never duplicates anything.
+
+DO NOT
+------
+* Do NOT run GP_WipeSlips or GP_Undo - those are retired. Delete them.
+* Do NOT copy the *backup_*.accdb files back to the server.
+* Do NOT run two imports at once out of the same folder.
+* Do NOT delete gp_assigned_ids.csv until all three stores are done.
