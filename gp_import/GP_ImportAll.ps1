@@ -107,6 +107,7 @@ $script:tableHome  = @{}   # "STORE|Table" -> conn key
 $script:lockWaits  = 0
 $script:reopens    = 0
 $script:failed     = $null
+$script:hadTables  = @{}   # conn key -> it contained at least one table we need
 $CONN_ERRORS = @('*network access was interrupted*','*connection is closed*','*connection was closed*','*cannot find the input table*')
 
 function Test-Conn($key, $c) {
@@ -344,6 +345,7 @@ foreach ($x in $sets) {
             continue
         }
         $use = $found[0]
+        foreach ($k in $found) { $script:hadTables["$s|$k"] = $true }
         $script:tableHome["$s|$tbl"] = "$s|$use"
         if (-not $script:probeTable.ContainsKey("$s|$use")) { $script:probeTable["$s|$use"] = $tbl }
         if ($found.Count -gt 1) { Log "  $s : [$tbl] in both - using $use" 'Yellow' }
@@ -367,7 +369,11 @@ $inUse = @{}
 foreach ($v in $script:tableHome.Values) { $inUse[$v] = $true }
 foreach ($key in @($script:conns.Keys)) {
     if (-not $inUse.ContainsKey($key)) {
-        Log "  $key holds none of the tables we write - leaving it untouched" 'Yellow'
+        if ($script:hadTables.ContainsKey($key)) {
+            Log "  $key has these tables too, but primary is the one being written - leaving it untouched" 'Yellow'
+        } else {
+            Log "  $key holds none of the tables we write - leaving it untouched" 'Yellow'
+        }
         try { $script:conns[$key].Close() } catch {}
         $script:conns.Remove($key)
     }
