@@ -14,6 +14,8 @@ LINE=colors.HexColor('#B0B0B0'); BLACK=colors.HexColor('#111111'); GREEN=colors.
 W=7.0*inch
 
 # ---- data -------------------------------------------------------------
+import json
+M=json.load(open('lg/memo.json'))
 c=pd.read_pickle('lg/cats_spec.pkl')
 p=pd.read_pickle('lg/cat_profits.pkl')[['category','units_sold','profit_total','profit_per_piece']]
 c=c.merge(p,on='category',how='left').sort_values('ret6m',ascending=False).reset_index(drop=True)
@@ -77,7 +79,8 @@ def build_story():
      '<b>50&#162; on the dollar</b> in six months and turn in 92 days, ahead of lab center rings at 40&#162;. '
      'Citizen is last of ' + str(NCAT) + '.<br/><br/>'
      '<b>4. Loose lab grown diamonds cost us nothing to carry.</b> We take them on memo and owe nothing until '
-     'they sell, so stocking them is not a spending decision at all. Keep taking them.'))
+     'they sell, so stocking them is not a spending decision at all. It is the most profitable line in the '
+     'store and it needs no budget. Keep taking them, and see page 2.'))
 
     story.append(sec(
      Paragraph('RINGS vs. CITIZEN WATCHES', HEAD),
@@ -115,6 +118,45 @@ def build_story():
                '$6,208 and $1,567 at month six, but not the gap. There is no two year ring figure because only 28 '
                'lab center pieces have been on the shelf that long.', NOTE)))
 
+    story.append(sec(
+     Paragraph('MEMO STONES: LOOSE LAB GROWN DIAMONDS', HEAD),
+     box('These come in on memo. We owe nothing until one sells, so no part of a buying budget goes to them '
+         'and they compete with nothing else on this page. Since 2021 they have made <b>' + m(M['profit_all']) +
+         '</b>, about <b>' + m(M['profit_per_yr']) + ' a year</b>, with no cash of ours tied up. Nothing else '
+         'we carry comes close.'),
+     Spacer(1,7),
+     grid([['','Memo stones'],
+       ['Stones taken in since 2021','{:,.0f}  (about {:,.0f} a year)'.format(M['taken'],M['taken_per_yr'])],
+       ['Stones sold','{:,.0f}'.format(M['sold'])],
+       ['Profit made', m(M['profit_all'])],
+       ['Profit per year', m(M['profit_per_yr'])],
+       ['Profit per stone sold', m(M['per_stone'])],
+       ['Margin','{:.0f}%'.format(M['margin'])],
+       ['Half of them sell within','{:.0f} days'.format(M['med_days_all'])],
+       ['Sold within 90 days','{:.0f}%'.format(M['pct_90'])],
+       ['Sold within 6 months','{:.0f}%'.format(M['pct_6m'])]],
+      [3.0*inch,4.0*inch], cols=False,
+      extra=[('BACKGROUND',(0,3),(-1,3),GREEN),('ALIGN',(1,0),(-1,-1),'LEFT')]),
+     Spacer(1,9),
+     Paragraph('<b>Two different things are happening inside that number</b>', ParagraphStyle('mh',
+               parent=NOTE,fontSize=10,textColor=NAVY,spaceAfter=4)),
+     grid([['','Already sold before it arrived','Put in the case on spec'],
+       ['Stones','{:,.0f}   ({:.0f}%)'.format(M['n_pre'],M['pct_pre']),
+                 '{:,.0f}   ({:.0f}%)'.format(M['n_spec'],M['pct_spec'])],
+       ['Typical days to sell','{:.0f} days'.format(M['med_days_pre']),'{:.0f} days'.format(M['med_days_spec'])],
+       ['Profit made', m(M['profit_pre']), m(M['profit_spec'])]],
+      [2.2*inch,2.4*inch,2.4*inch]),
+     Spacer(1,5),
+     Paragraph('Nearly three in ten are ordered against a customer already standing in the store and are gone '
+               'in about ' + '{:.0f}'.format(M['med_days_pre']) + ' days, so they carry no risk at all. The '
+               'other seven in ten go into the case on spec and still clear in ' +
+               '{:.0f}'.format(M['med_days_spec']) + ' days, faster than any line we actually pay for. The '
+               'inventory record shows ' + '{:,.0f}'.format(M['unsold']) + ' stones with no sale against them, '
+               'but on memo that mixes stones still on the floor with stones already sent back to the vendor, '
+               'so read it as an upper bound rather than as current stock.', NOTE)))
+
+    # ---------------- PAGE 3 ----------------
+    story.append(PageBreak())
     rows=[['Category','Profit per $1\nin 6 months','Profit made\nsince 2021','Profit per\npiece sold',
            'Typical\ndays','Margin']]
     cit_row=None
@@ -148,8 +190,8 @@ def build_story():
          '<b>4. Lab accent rings are the next line down.</b> 33&#162; per dollar and a 165 day turn, '
          + m(AC['profit_total']) + ' made on ' + str(int(AC['units_sold'])) + ' pieces. Worth stocking, but '
          'behind the two above it.<br/><br/>'
-         '<b>5. Keep taking loose lab grown diamonds on memo.</b> Fastest turn in the store at 53 days and 60% '
-         'margin, and they cost nothing until they sell, so carrying them competes with nothing else.',
+         '<b>5. Keep taking loose lab grown diamonds on memo.</b> ' + m(M['profit_all']) + ' made since 2021 with '
+         'no cash of ours in them, the fastest turn in the store, and the highest margin. See page 2.',
          fill=colors.HexColor('#EEF3FA'), border=NAVY)))
 
     story.append(Paragraph('HOW THIS WAS BUILT, AND WHERE IT COULD BE WRONG', HEAD))
