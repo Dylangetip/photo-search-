@@ -146,9 +146,23 @@ foreach ($x in $sets) {
     $plan = @(
         @{ tbl='Customers';            where="[Source] = 'GP'";              key='ID' },
         @{ tbl='Customer_PastHistory'; where="PastHistory LIKE '%Great Plains history%'"; key='CustID' },
-        @{ tbl='POS_SalesSlip';        where="ID >= $BASE";                  key='ID' },
-        @{ tbl='POS_Transactions';     where="SalesSlipID >= $BASE";         key='TransactionID' }
+        @{ tbl='POS_SalesSlip';        where="Notes LIKE 'GPIMPORT:%'";      key='ID' },
+        @{ tbl='POS_Transactions';     where="SalesSlipID IN (SELECT ID FROM POS_SalesSlip WHERE Notes LIKE 'GPIMPORT:%')"; key='TransactionID' }
     )
+    # LIKE wildcard self-check. If this engine wanted * instead of %, every
+    # marker query would match nothing and we would copy an empty set while
+    # reporting success. Verify against a wildcard-free count first.
+    $inRange = [int](Scalar $cSrc "SELECT COUNT(*) FROM POS_SalesSlip WHERE ID >= $BASE")
+    $marked  = [int](Scalar $cSrc "SELECT COUNT(*) FROM POS_SalesSlip WHERE Notes LIKE 'GPIMPORT:%'")
+    Log "  primary: $inRange slips at ID >= $BASE, $marked carry a GPIMPORT marker"
+    if ($inRange -gt 0 -and $marked -eq 0) {
+        $cSrc.Close(); $cDst.Close()
+        Die "no slip matched the GPIMPORT marker although $inRange sit in the imported ID range. This engine may want * rather than % as the LIKE wildcard - copying now would silently do nothing."
+    }
+    if ($inRange -gt $marked) {
+        Log "  note: $($inRange - $marked) slips at ID >= $BASE are NOT from the GP import (Clarity issues live slip IDs in this range) - they will not be copied." 'Yellow'
+    }
+
     $bad = @()
     $todo = @()
     foreach ($p in $plan) {
