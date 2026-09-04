@@ -81,8 +81,9 @@ def build_story():
      '<b>50&#162; on the dollar</b> in six months and turn in 92 days, ahead of lab center rings at 40&#162;. '
      'Citizen is last of ' + str(NCAT) + '.<br/><br/>'
      '<b>4. Loose lab grown diamonds cost us nothing to carry.</b> We take them on memo and owe nothing until '
-     'they sell, so stocking them is not a spending decision at all. It is the most profitable line in the '
-     'store and it needs no budget. They sit in their own block at the foot of the ranking.'))
+     'they sell, so stocking them is not a spending decision at all. Counting every memo stone, presold and '
+     'speculative, they have made <b>' + m(M['profit_all']) + '</b> since 2021, about <b>' +
+     m(M['profit_per_yr']) + ' a year</b>, with no cash of ours tied up. Keep taking them.'))
 
     story.append(sec(
      Paragraph('RINGS vs. CITIZEN WATCHES', HEAD),
@@ -123,25 +124,14 @@ def build_story():
     # ---------------- ranked table: flows on from the $25,000 block ----------
     rows=[['Category','Profit per $1\nin 6 months','Profit made\nsince 2021','Average\nsale','Average\ncost',
            'Average\nprofit','Typical\ndays','Margin']]
-    cit_row=None
+    cit_row=None; memo_row=None
     for i,r in c.iterrows():
-        if r['category'] in MEMO: continue          # memo stock gets its own block below
-        rows.append([r['label'],'{:.0f}¢'.format(round(r['ret6m']*100)),m(r['profit_total']),
+        lab=r['label'] + (' (on memo)' if r['category'] in MEMO else '')
+        rows.append([lab,'{:.0f}¢'.format(round(r['ret6m']*100)),m(r['profit_total']),
                      m(r['sold_avg_sale']),m(r['sold_avg_cost']),m(r['sold_avg_profit']),
                      '{:.0f}'.format(r['med_days']),'{:.0f}%'.format(r['margin'])])
         if r['category']=='Citizen watches': cit_row=len(rows)-1
-    div_row=len(rows)
-    rows.append(['ON MEMO: WE OWE NOTHING UNTIL IT SELLS','','','','','','',''])
-    LG=c[c.category.isin(MEMO)].iloc[0]
-    rows.append(['Loose lab grown, in the case on spec','{:.0f}¢'.format(round(LG['ret6m']*100)),
-                 m(M['profit_spec']),m(M['avg_price_spec']),m(M['avg_cost_spec']),m(M['avg_profit_spec']),
-                 '{:.0f}'.format(M['med_days_spec']),'{:.0f}%'.format(M['margin_spec'])])
-    rows.append(['Loose lab grown, sold before it arrived','',
-                 m(M['profit_pre']),m(M['avg_price_pre']),m(M['avg_cost_pre']),m(M['avg_profit_pre']),
-                 '{:.0f}'.format(M['med_days_pre']),'{:.0f}%'.format(M['margin_pre'])])
-    rows.append(['Both together, ' + '{:,.0f}'.format(M['taken']) + ' stones taken in since 2021','',
-                 m(M['profit_all']),m(M['avg_price']),m(M['avg_cost']),m(M['avg_profit']),
-                 '{:.0f}'.format(M['med_days_all']),'{:.0f}%'.format(M['margin'])])
+        if r['category'] in MEMO: memo_row=len(rows)-1
     story.append(KeepTogether([
      Paragraph('EVERY CATEGORY, RANKED BY SIX MONTH RETURN', HEAD),
      Paragraph('<b>Profit per $1 in 6 months</b> is what a dollar of stock hands back as profit within six months '
@@ -149,19 +139,13 @@ def build_story():
                'period. The three averages are per piece sold, and <b>average sale less average cost equals '
                'average profit</b> on every row. <b>Margin</b> is profit as a share of the sale price, taken on '
                'the category total rather than averaged across pieces. All of it counts speculative stock only, '
-               'so special orders bought against a waiting customer are excluded, except in the memo block at the '
-               'foot of the table, which shows both halves separately.', NOTE),
+               'so special orders bought against a waiting customer are excluded. The shaded row is the one line we '
+               'take on memo, where nothing is owed until it sells.', NOTE),
      Spacer(1,5)]))
     story.append(
      grid(rows,[1.62*inch,.78*inch,.92*inch,.72*inch,.72*inch,.75*inch,.52*inch,.57*inch],fs=8,hfs=7,
           extra=[('BACKGROUND',(0,cit_row),(-1,cit_row),colors.HexColor('#FBE9E9')),
-                 ('SPAN',(0,div_row),(-1,div_row)),
-                 ('BACKGROUND',(0,div_row),(-1,div_row),NAVY),
-                 ('TEXTCOLOR',(0,div_row),(-1,div_row),colors.white),
-                 ('FONT',(0,div_row),(-1,div_row),'Helvetica-Bold',7.5),
-                 ('ALIGN',(0,div_row),(-1,div_row),'LEFT'),
-                 ('BACKGROUND',(0,div_row+1),(-1,div_row+3),colors.HexColor('#EAF1E4')),
-                 ('FONT',(0,div_row+3),(-1,div_row+3),'Helvetica-Bold',8)]))
+                 ('BACKGROUND',(0,memo_row),(-1,memo_row),GREEN)]))
 
     # ---------------- recommendations ----------------
     story.append(PageBreak())
