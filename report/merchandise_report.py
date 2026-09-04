@@ -82,7 +82,7 @@ def build_story():
      'Citizen is last of ' + str(NCAT) + '.<br/><br/>'
      '<b>4. Loose lab grown diamonds cost us nothing to carry.</b> We take them on memo and owe nothing until '
      'they sell, so stocking them is not a spending decision at all. It is the most profitable line in the '
-     'store and it needs no budget. Keep taking them, and see page 2.'))
+     'store and it needs no budget. They sit in their own block at the foot of the ranking.'))
 
     story.append(sec(
      Paragraph('RINGS vs. CITIZEN WATCHES', HEAD),
@@ -120,61 +120,50 @@ def build_story():
                '$6,208 and $1,567 at month six, but not the gap. There is no two year ring figure because only 28 '
                'lab center pieces have been on the shelf that long.', NOTE)))
 
-    story.append(sec(
-     Paragraph('MEMO STONES: LOOSE LAB GROWN DIAMONDS', HEAD),
-     box('These come in on memo. We owe nothing until one sells, so none of a buying budget goes to them. '
-         'Since 2021 we have taken in ' + '{:,.0f}'.format(M['taken']) + ' stones, about '
-         '{:,.0f}'.format(M['taken_per_yr']) + ' a year, and they have made <b>' + m(M['profit_all']) +
-         '</b>, about <b>' + m(M['profit_per_yr']) + ' a year</b>, with no cash of ours tied up.'),
-     Spacer(1,7),
-     grid([['','All memo stones','Sold before it arrived','Put in the case on spec'],
-       ['Stones sold','{:,.0f}'.format(M['sold']),
-        '{:,.0f}  ({:.0f}%)'.format(M['n_pre'],M['pct_pre']),
-        '{:,.0f}  ({:.0f}%)'.format(M['n_spec'],M['pct_spec'])],
-       ['Average sale', m(M['avg_price']), m(M['avg_price_pre']), m(M['avg_price_spec'])],
-       ['Average cost', m(M['avg_cost']),  m(M['avg_cost_pre']),  m(M['avg_cost_spec'])],
-       ['Average profit', m(M['avg_profit']), m(M['avg_profit_pre']), m(M['avg_profit_spec'])],
-       ['Margin','{:.0f}%'.format(M['margin']),'{:.0f}%'.format(M['margin_pre']),'{:.0f}%'.format(M['margin_spec'])],
-       ['Half sell within','{:.0f} days'.format(M['med_days_all']),'{:.0f} days'.format(M['med_days_pre']),
-        '{:.0f} days'.format(M['med_days_spec'])],
-       ['Profit made', m(M['profit_all']), m(M['profit_pre']), m(M['profit_spec'])]],
-      [1.65*inch,1.5*inch,1.9*inch,1.95*inch], fs=8.5, hfs=8,
-      extra=[('BACKGROUND',(0,7),(-1,7),GREEN)]),
-     Spacer(1,5),
-     Paragraph('Average sale less average cost equals average profit in every column. Nearly three in ten stones '
-               'are ordered against a customer already standing in the store and clear in about '
-               '{:.0f}'.format(M['med_days_pre']) + ' days at no risk. The other seven in ten go into the case '
-               'cold and still turn in ' + '{:.0f}'.format(M['med_days_spec']) + ' days at '
-               '{:.0f}%'.format(M['margin_spec']) + ' margin, faster and richer than any line we pay for. '
-               '{:.0f}%'.format(M['pct_90']) + ' of all memo stones sell within 90 days and '
-               '{:.0f}%'.format(M['pct_6m']) + ' within six months. The inventory record shows '
-               '{:,.0f}'.format(M['unsold']) + ' stones with no sale against them, but on memo that mixes stones '
-               'still on the floor with stones already sent back to the vendor, so read it as an upper bound '
-               'rather than as current stock.', NOTE)))
-
-    # ---------------- PAGE 3 ----------------
-    story.append(PageBreak())
+    # ---------------- ranked table: flows on from the $25,000 block ----------
     rows=[['Category','Profit per $1\nin 6 months','Profit made\nsince 2021','Average\nsale','Average\ncost',
            'Average\nprofit','Typical\ndays','Margin']]
     cit_row=None
     for i,r in c.iterrows():
+        if r['category'] in MEMO: continue          # memo stock gets its own block below
         rows.append([r['label'],'{:.0f}¢'.format(round(r['ret6m']*100)),m(r['profit_total']),
                      m(r['sold_avg_sale']),m(r['sold_avg_cost']),m(r['sold_avg_profit']),
                      '{:.0f}'.format(r['med_days']),'{:.0f}%'.format(r['margin'])])
         if r['category']=='Citizen watches': cit_row=len(rows)-1
-    story.append(sec(
+    div_row=len(rows)
+    rows.append(['ON MEMO: WE OWE NOTHING UNTIL IT SELLS','','','','','','',''])
+    LG=c[c.category.isin(MEMO)].iloc[0]
+    rows.append(['Loose lab grown, in the case on spec','{:.0f}¢'.format(round(LG['ret6m']*100)),
+                 m(M['profit_spec']),m(M['avg_price_spec']),m(M['avg_cost_spec']),m(M['avg_profit_spec']),
+                 '{:.0f}'.format(M['med_days_spec']),'{:.0f}%'.format(M['margin_spec'])])
+    rows.append(['Loose lab grown, sold before it arrived','',
+                 m(M['profit_pre']),m(M['avg_price_pre']),m(M['avg_cost_pre']),m(M['avg_profit_pre']),
+                 '{:.0f}'.format(M['med_days_pre']),'{:.0f}%'.format(M['margin_pre'])])
+    rows.append(['Both together, ' + '{:,.0f}'.format(M['taken']) + ' stones taken in since 2021','',
+                 m(M['profit_all']),m(M['avg_price']),m(M['avg_cost']),m(M['avg_profit']),
+                 '{:.0f}'.format(M['med_days_all']),'{:.0f}%'.format(M['margin'])])
+    story.append(KeepTogether([
      Paragraph('EVERY CATEGORY, RANKED BY SIX MONTH RETURN', HEAD),
      Paragraph('<b>Profit per $1 in 6 months</b> is what a dollar of stock hands back as profit within six months '
                'of arriving. <b>Profit made since 2021</b> is the real money the category has returned over that '
                'period. The three averages are per piece sold, and <b>average sale less average cost equals '
                'average profit</b> on every row. <b>Margin</b> is profit as a share of the sale price, taken on '
                'the category total rather than averaged across pieces. All of it counts speculative stock only, '
-               'so special orders bought against a waiting customer are excluded.', NOTE),
-     Spacer(1,5),
+               'so special orders bought against a waiting customer are excluded, except in the memo block at the '
+               'foot of the table, which shows both halves separately.', NOTE),
+     Spacer(1,5)]))
+    story.append(
      grid(rows,[1.62*inch,.78*inch,.92*inch,.72*inch,.72*inch,.75*inch,.52*inch,.57*inch],fs=8,hfs=7,
-          extra=[('BACKGROUND',(0,cit_row),(-1,cit_row),colors.HexColor('#FBE9E9'))])))
+          extra=[('BACKGROUND',(0,cit_row),(-1,cit_row),colors.HexColor('#FBE9E9')),
+                 ('SPAN',(0,div_row),(-1,div_row)),
+                 ('BACKGROUND',(0,div_row),(-1,div_row),NAVY),
+                 ('TEXTCOLOR',(0,div_row),(-1,div_row),colors.white),
+                 ('FONT',(0,div_row),(-1,div_row),'Helvetica-Bold',7.5),
+                 ('ALIGN',(0,div_row),(-1,div_row),'LEFT'),
+                 ('BACKGROUND',(0,div_row+1),(-1,div_row+3),colors.HexColor('#EAF1E4')),
+                 ('FONT',(0,div_row+3),(-1,div_row+3),'Helvetica-Bold',8)]))
 
-    # ---------------- PAGE 3 ----------------
+    # ---------------- recommendations ----------------
     story.append(PageBreak())
     story.append(sec(
      Paragraph('WHAT I WOULD DO', HEAD),
@@ -191,7 +180,7 @@ def build_story():
          + m(AC['profit_total']) + ' made on ' + str(int(AC['units_sold'])) + ' pieces. Worth stocking, but '
          'behind the two above it.<br/><br/>'
          '<b>5. Keep taking loose lab grown diamonds on memo.</b> ' + m(M['profit_all']) + ' made since 2021 with '
-         'no cash of ours in them, the fastest turn in the store, and the highest margin. See page 2.',
+         'no cash of ours in them, the fastest turn in the store, and the highest margin.',
          fill=colors.HexColor('#EEF3FA'), border=NAVY)))
 
     story.append(Paragraph('HOW THIS WAS BUILT, AND WHERE IT COULD BE WRONG', HEAD))
