@@ -13,7 +13,7 @@
 # Same folder rules as the import: looks only in its own folder, at
 # <store>\primary.accdb, or at primary.accdb here with  -Store 1ORM
 
-param([string]$Store)
+param([string]$Store, [switch]$Auto)
 
 $ErrorActionPreference = 'Continue'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -98,7 +98,7 @@ if ($sets.Count -eq 0 -and (Test-Path (Join-Path $here 'primary.accdb'))) {
     if (-not $Store) { $Store = '(this folder)' }
     $sets += @{ Store = $Store; dir = $here }
 }
-if ($sets.Count -eq 0) { Write-Host 'No primary.accdb found in this folder.' -ForegroundColor Red; Read-Host 'Enter'; exit 1 }
+if ($sets.Count -eq 0) { Write-Host 'No primary.accdb found in this folder.' -ForegroundColor Red; if (-not $Auto) { Read-Host 'Enter' }; exit 1 }
 
 Write-Host 'Reading... on databases this size the join checks can take several minutes.' -ForegroundColor Cyan
 W "GP -> Clarity import verification"
@@ -336,4 +336,4 @@ if ($script:warnings.Count -gt 0) {
 }
 W ''
 W "Report written to: $report"
-Read-Host 'Press Enter to close'
+if (-not $Auto) { Read-Host 'Press Enter to close' }

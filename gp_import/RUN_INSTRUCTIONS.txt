@@ -1,120 +1,136 @@
-GP -> CLARITY IMPORT - RUN INSTRUCTIONS (local copies on a PC)
-==============================================================
+GP -> CLARITY : ONE-SHOT RUN
+============================================================
 
-WHAT THIS IS: a one-shot import that adds old Great Plains sales history into
-the Clarity store databases. To avoid fighting locks on the live share, you
-copy the databases down to this PC, run the import against those copies, then
-copy them back up.
+WHAT THIS DOES, IN ONE GO
+  1. imports the old Great Plains sales history into primary.accdb
+  2. copies those same rows into secondary.accdb so the two match
+  3. audits both and writes GP_Verify_Report.txt
 
-It only ADDS records. It backs up every database before writing, and it is
-safe to run again - it skips anything already imported.
+You run ONE file. It backs every database up before writing, only ever ADDS
+records, and is safe to run again - anything already done is skipped.
 
-FOLDER
-------
-Everything lives in ONE folder, and the script only ever looks in its own
-folder - there is no searching:
 
-  C:\Users\bwilde\Desktop\GP\
-      GP_ImportAll.ps1
-      Run_GP_ImportAll_32bit.bat   (or the 64bit one)
-      import_append_history.csv
-      import_new_customers.csv
-      slips_1ORM.csv
-      slips_2SDY.csv
-      slips_3MRY.csv
+WHERE THINGS STAND (verified against your Orem files on 09/04)
+--------------------------------------------------------------
+  OREM primary    DONE and correct. 24,337 slips, $20,013,002.83, matching
+                  the source data to the cent. 0 duplicates, 0 orphans.
+                  Re-running will skip all of it - that is expected.
+  OREM secondary  has NONE of the GP data yet. Stage 2 fixes this.
+  SANDY, MURRAY   not checked - I only had the Orem files. The run will
+                  finish whatever is outstanding and the audit will confirm.
 
-Then copy the databases in, one of two ways.
 
-  ALL THREE STORES AT ONCE - keep the store folders:
-      C:\Users\bwilde\Desktop\GP\1ORM\primary.accdb
-      C:\Users\bwilde\Desktop\GP\1ORM\secondary.accdb
-      C:\Users\bwilde\Desktop\GP\2SDY\primary.accdb
-      C:\Users\bwilde\Desktop\GP\2SDY\secondary.accdb
-      C:\Users\bwilde\Desktop\GP\3MRY\primary.accdb
-      C:\Users\bwilde\Desktop\GP\3MRY\secondary.accdb
-
-  ONE STORE AT A TIME - files sit right in the GP folder:
-      C:\Users\bwilde\Desktop\GP\primary.accdb
-      C:\Users\bwilde\Desktop\GP\secondary.accdb
-    and you must tell it which store it is (see step 3).
-
-PRIMARY AND SECONDARY: copy down BOTH files for a store. The script opens both
-and works out which one holds each table, so it does not matter how Clarity
-splits them. If a table is in both, it uses primary.
-
-STEPS
------
+BEFORE YOU START
+----------------
 1. Close Clarity and Access on this PC.
 
-2. Copy the store database files down from the server into the GP folder,
-   using one of the two layouts above.
+2. Put these files in ONE folder, e.g. C:\Users\bwilde\Desktop\GP
 
-3. Double-click the .bat that matches your Office:
-     Run_GP_ImportAll_32bit.bat   - 32-bit Office (most common)
-     Run_GP_ImportAll_64bit.bat   - 64-bit Office
-   If you are doing ONE store at a time, run it from a command prompt with
-   the store name instead:
-     Run_GP_ImportAll_32bit.bat -Store 1ORM
+3. Copy the store databases into that folder, either way:
 
-4. It lists the database files it found and which one holds each table.
-   Sanity-check that list, then type  GO  and press Enter.
+   ALL THREE STORES AT ONCE - keep the store folders:
+       GP\1ORM\primary.accdb   GP\1ORM\secondary.accdb
+       GP\2SDY\primary.accdb   GP\2SDY\secondary.accdb
+       GP\3MRY\primary.accdb   GP\3MRY\secondary.accdb
 
-5. Watch the first couple of minutes. You should see, in order:
-     - "Verified: all database files are free."
-     - "Mapping which database holds which table..."
-     - "Backup 1ORM|primary -> ..."
-     - "Preloading lookup caches..."
-     - "STAGE 1: notes + customers"
-   Once customer progress lines are ticking up it is healthy. Leave it until
-   it prints  === RUN COMPLETE ===
+   ONE STORE AT A TIME - files sit directly in GP\:
+       GP\primary.accdb        GP\secondary.accdb
+     and name the store when you run it (see below).
 
-6. Spot-check a few customers and a few old sales slips in Clarity.
+   Copy BOTH primary and secondary for every store you bring down.
 
-7. Copy the database files back up to the server. Do NOT copy back the
-   *backup_*.accdb files - those are just the safety copies.
 
-8. Send back GP_Import_log.txt from this folder.
+RUN IT
+------
+Double-click the one that matches your Office:
 
-RUNNING ONE STORE AT A TIME
----------------------------
-A customer has to end up with the SAME ID in all three stores. When you run
-store-by-store, the script cannot see the other stores, so it writes every ID
-it hands out into:
+    RUN_ALL_32bit.bat     32-bit Office  (most common)
+    RUN_ALL_64bit.bat     64-bit Office
 
+Doing one store at a time? Open a command prompt in the folder and run:
+
+    RUN_ALL_32bit.bat -Store 1ORM          (or 2SDY, or 3MRY)
+
+It lists the databases it found, tells you what it will do, and waits.
+Type  GO  and press Enter.
+
+Healthy progress looks like:
+    Verified: all database files are free.
+    Mapping which database holds which table...
+    Backup 1ORM|primary -> ...
+    Preloading lookup caches...
+    STAGE 1: notes + customers
+    ...customer and slip counters ticking up...
+    ################  STAGE 2 : copy into secondary
+    ################  STAGE 3 : audit
+
+Leave it until it prints  === RUN ALL COMPLETE ===
+
+
+WHEN IT FINISHES
+----------------
+1. OPEN GP_Verify_Report.txt AND READ THE SUMMARY AT THE BOTTOM.
+   "No problems found."  -> you are good.
+   Anything under PROBLEMS -> do NOT put the files back; send me the report.
+
+2. Spot-check in Clarity: find an old customer, confirm their 2000-2005
+   history is there and the amounts look right.
+
+3. Copy primary.accdb and secondary.accdb back up to the server.
+   Do NOT copy back any file named *backup_*.accdb - those are the safety
+   copies. Leave them here until you are happy.
+
+4. Send me GP_Verify_Report.txt.
+
+
+KEEP THIS FILE
+--------------
     gp_assigned_ids.csv
 
-KEEP THAT FILE in the folder between runs. It is what makes the second and
-third store agree with the first. If you delete it, later stores will invent
-new IDs and the same person will end up with different IDs per store.
+It records the customer ID given to each GP customer. It is what makes the
+second and third store agree with the first. Do not delete it until all
+three stores are done.
 
-Purchase-history notes are only written at Orem, so they are done on the run
-that includes 1ORM.
+
+OPTIONS
+-------
+  -Store 1ORM        which store, when the files sit directly in the folder
+  -SkipSecondary     stages 1 and 3 only; secondary is not touched
+  -WhatIfSecondary   stage 2 only reports what it would copy, writes nothing
+  -Auto              no prompts at all (for a scheduled run)
+
+There is also a read-only helper you can run any time, even mid-import:
+    Run_Check_Secondary.bat    compares primary, secondary and the backup
+
 
 IF SOMETHING GOES WRONG
 -----------------------
-* "STOP: the Microsoft Access engine (ACE) is not available":
+Nothing is changed before the databases are backed up, and each stage stops
+the run rather than continuing into the next one.
+
+* "the Microsoft Access engine (ACE) is not available"
   Nothing was changed. Install "Microsoft Access Database Engine 2010
-  Redistributable" from microsoft.com. The bitness must match - if you ran the
-  32-bit .bat, install AccessDatabaseEngine.exe (the one WITHOUT _X64). Then
-  run again.
+  Redistributable". The bitness must match the .bat you ran - for the
+  32-bit .bat install AccessDatabaseEngine.exe, the one WITHOUT _X64.
 
-* "STOP: these tables were not found in primary or secondary":
-  Nothing was changed. A database file is missing or the wrong one got copied
-  down. Check that both primary.accdb and secondary.accdb came over for that
-  store.
-
-* "STOP: still held open by some program":
+* "still held open by some program"
   Nothing was changed. Close Clarity/Access on this PC and run again.
 
-* "found primary.accdb in this folder but not which store it belongs to":
-  You used the one-store layout. Re-run with -Store 1ORM (or 2SDY / 3MRY).
+* "these tables were not found in primary or secondary"
+  Nothing was changed. A wrong or partial database file was copied down.
 
-* If the run is interrupted (reboot, closed window): just run it again. It
-  picks up where it left off and never duplicates anything.
+* "schemas differ for: ..."
+  Stage 2 refused to write because secondary's columns do not match
+  primary's. Primary is untouched and fine. Send me the log.
 
-DO NOT
-------
-* Do NOT run GP_WipeSlips or GP_Undo - those are retired. Delete them.
-* Do NOT copy the *backup_*.accdb files back to the server.
-* Do NOT run two imports at once out of the same folder.
-* Do NOT delete gp_assigned_ids.csv until all three stores are done.
+* Interrupted (reboot, window closed)
+  Just run it again. It resumes and never duplicates anything.
+
+
+ONE THING TO KNOW
+-----------------
+Clarity numbers new sales slips as "highest existing + 1". The first GP
+import put rows high in that range, so your live slips have been numbering
+from 900,002 upward since 22 Aug. That is cosmetic - nothing collides, and
+the slip NUMBER your staff and customers see (150,374, 150,375, ...) is a
+separate sequence that is unaffected. No action needed.
