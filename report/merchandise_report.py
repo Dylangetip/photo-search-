@@ -18,7 +18,9 @@ import json
 M=json.load(open('lg/memo.json'))
 c=pd.read_pickle('lg/cats_spec.pkl')
 p=pd.read_pickle('lg/cat_profits.pkl')[['category','units_sold','profit_total','profit_per_piece']]
-c=c.merge(p,on='category',how='left').sort_values('ret6m',ascending=False).reset_index(drop=True)
+e=pd.read_pickle('lg/cat_econ.pkl')[['category','avg_rev','avg_cost','avg_profit']].rename(
+    columns={'avg_rev':'sold_avg_sale','avg_cost':'sold_avg_cost','avg_profit':'sold_avg_profit'})
+c=c.merge(p,on='category',how='left').merge(e,on='category',how='left').sort_values('ret6m',ascending=False).reset_index(drop=True)
 DROP=['Watches - other brands']
 MEMO=['Loose lab-grown diamonds']
 NICE={'Anniversary bands - lab':'Lab anniversary bands',
@@ -120,58 +122,56 @@ def build_story():
 
     story.append(sec(
      Paragraph('MEMO STONES: LOOSE LAB GROWN DIAMONDS', HEAD),
-     box('These come in on memo. We owe nothing until one sells, so no part of a buying budget goes to them '
-         'and they compete with nothing else on this page. Since 2021 they have made <b>' + m(M['profit_all']) +
-         '</b>, about <b>' + m(M['profit_per_yr']) + ' a year</b>, with no cash of ours tied up. Nothing else '
-         'we carry comes close.'),
+     box('These come in on memo. We owe nothing until one sells, so none of a buying budget goes to them. '
+         'Since 2021 we have taken in ' + '{:,.0f}'.format(M['taken']) + ' stones, about '
+         '{:,.0f}'.format(M['taken_per_yr']) + ' a year, and they have made <b>' + m(M['profit_all']) +
+         '</b>, about <b>' + m(M['profit_per_yr']) + ' a year</b>, with no cash of ours tied up.'),
      Spacer(1,7),
-     grid([['','Memo stones'],
-       ['Stones taken in since 2021','{:,.0f}  (about {:,.0f} a year)'.format(M['taken'],M['taken_per_yr'])],
-       ['Stones sold','{:,.0f}'.format(M['sold'])],
-       ['Profit made', m(M['profit_all'])],
-       ['Profit per year', m(M['profit_per_yr'])],
-       ['Profit per stone sold', m(M['per_stone'])],
-       ['Margin','{:.0f}%'.format(M['margin'])],
-       ['Half of them sell within','{:.0f} days'.format(M['med_days_all'])],
-       ['Sold within 90 days','{:.0f}%'.format(M['pct_90'])],
-       ['Sold within 6 months','{:.0f}%'.format(M['pct_6m'])]],
-      [3.0*inch,4.0*inch], cols=False,
-      extra=[('BACKGROUND',(0,3),(-1,3),GREEN),('ALIGN',(1,0),(-1,-1),'LEFT')]),
-     Spacer(1,9),
-     Paragraph('<b>Two different things are happening inside that number</b>', ParagraphStyle('mh',
-               parent=NOTE,fontSize=10,textColor=NAVY,spaceAfter=4)),
-     grid([['','Already sold before it arrived','Put in the case on spec'],
-       ['Stones','{:,.0f}   ({:.0f}%)'.format(M['n_pre'],M['pct_pre']),
-                 '{:,.0f}   ({:.0f}%)'.format(M['n_spec'],M['pct_spec'])],
-       ['Typical days to sell','{:.0f} days'.format(M['med_days_pre']),'{:.0f} days'.format(M['med_days_spec'])],
-       ['Profit made', m(M['profit_pre']), m(M['profit_spec'])]],
-      [2.2*inch,2.4*inch,2.4*inch]),
+     grid([['','All memo stones','Sold before it arrived','Put in the case on spec'],
+       ['Stones sold','{:,.0f}'.format(M['sold']),
+        '{:,.0f}  ({:.0f}%)'.format(M['n_pre'],M['pct_pre']),
+        '{:,.0f}  ({:.0f}%)'.format(M['n_spec'],M['pct_spec'])],
+       ['Average sale', m(M['avg_price']), m(M['avg_price_pre']), m(M['avg_price_spec'])],
+       ['Average cost', m(M['avg_cost']),  m(M['avg_cost_pre']),  m(M['avg_cost_spec'])],
+       ['Average profit', m(M['avg_profit']), m(M['avg_profit_pre']), m(M['avg_profit_spec'])],
+       ['Margin','{:.0f}%'.format(M['margin']),'{:.0f}%'.format(M['margin_pre']),'{:.0f}%'.format(M['margin_spec'])],
+       ['Half sell within','{:.0f} days'.format(M['med_days_all']),'{:.0f} days'.format(M['med_days_pre']),
+        '{:.0f} days'.format(M['med_days_spec'])],
+       ['Profit made', m(M['profit_all']), m(M['profit_pre']), m(M['profit_spec'])]],
+      [1.65*inch,1.5*inch,1.9*inch,1.95*inch], fs=8.5, hfs=8,
+      extra=[('BACKGROUND',(0,7),(-1,7),GREEN)]),
      Spacer(1,5),
-     Paragraph('Nearly three in ten are ordered against a customer already standing in the store and are gone '
-               'in about ' + '{:.0f}'.format(M['med_days_pre']) + ' days, so they carry no risk at all. The '
-               'other seven in ten go into the case on spec and still clear in ' +
-               '{:.0f}'.format(M['med_days_spec']) + ' days, faster than any line we actually pay for. The '
-               'inventory record shows ' + '{:,.0f}'.format(M['unsold']) + ' stones with no sale against them, '
-               'but on memo that mixes stones still on the floor with stones already sent back to the vendor, '
-               'so read it as an upper bound rather than as current stock.', NOTE)))
+     Paragraph('Average sale less average cost equals average profit in every column. Nearly three in ten stones '
+               'are ordered against a customer already standing in the store and clear in about '
+               '{:.0f}'.format(M['med_days_pre']) + ' days at no risk. The other seven in ten go into the case '
+               'cold and still turn in ' + '{:.0f}'.format(M['med_days_spec']) + ' days at '
+               '{:.0f}%'.format(M['margin_spec']) + ' margin, faster and richer than any line we pay for. '
+               '{:.0f}%'.format(M['pct_90']) + ' of all memo stones sell within 90 days and '
+               '{:.0f}%'.format(M['pct_6m']) + ' within six months. The inventory record shows '
+               '{:,.0f}'.format(M['unsold']) + ' stones with no sale against them, but on memo that mixes stones '
+               'still on the floor with stones already sent back to the vendor, so read it as an upper bound '
+               'rather than as current stock.', NOTE)))
 
     # ---------------- PAGE 3 ----------------
     story.append(PageBreak())
-    rows=[['Category','Profit per $1\nin 6 months','Profit made\nsince 2021','Profit per\npiece sold',
-           'Typical\ndays','Margin']]
+    rows=[['Category','Profit per $1\nin 6 months','Profit made\nsince 2021','Average\nsale','Average\ncost',
+           'Average\nprofit','Typical\ndays','Margin']]
     cit_row=None
     for i,r in c.iterrows():
         rows.append([r['label'],'{:.0f}¢'.format(round(r['ret6m']*100)),m(r['profit_total']),
-                     m(r['profit_per_piece']),'{:.0f}'.format(r['med_days']),'{:.0f}%'.format(r['margin'])])
+                     m(r['sold_avg_sale']),m(r['sold_avg_cost']),m(r['sold_avg_profit']),
+                     '{:.0f}'.format(r['med_days']),'{:.0f}%'.format(r['margin'])])
         if r['category']=='Citizen watches': cit_row=len(rows)-1
     story.append(sec(
      Paragraph('EVERY CATEGORY, RANKED BY SIX MONTH RETURN', HEAD),
      Paragraph('<b>Profit per $1 in 6 months</b> is what a dollar of stock hands back as profit within six months '
-               'of arriving. <b>Profit made since 2021</b> is the real money the category has actually returned '
-               'over that period. Both count speculative stock only, so special orders bought against a waiting '
-               'customer are excluded.', NOTE),
+               'of arriving. <b>Profit made since 2021</b> is the real money the category has returned over that '
+               'period. The three averages are per piece sold, and <b>average sale less average cost equals '
+               'average profit</b> on every row. <b>Margin</b> is profit as a share of the sale price, taken on '
+               'the category total rather than averaged across pieces. All of it counts speculative stock only, '
+               'so special orders bought against a waiting customer are excluded.', NOTE),
      Spacer(1,5),
-     grid(rows,[1.95*inch,1.0*inch,1.1*inch,.95*inch,.85*inch,.75*inch],fs=9,hfs=8,
+     grid(rows,[1.62*inch,.78*inch,.92*inch,.72*inch,.72*inch,.75*inch,.52*inch,.57*inch],fs=8,hfs=7,
           extra=[('BACKGROUND',(0,cit_row),(-1,cit_row),colors.HexColor('#FBE9E9'))])))
 
     # ---------------- PAGE 3 ----------------

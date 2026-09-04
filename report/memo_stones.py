@@ -46,7 +46,8 @@ R=dict(
  med_days_all=sold['days'].median(), med_days_spec=spec['days'].median(), med_days_pre=pre['days'].median(),
  n_pre=len(pre), pct_pre=100*len(pre)/len(sold),
  n_spec=len(spec), pct_spec=100*len(spec)/len(sold),
- avg_cost=lab['bc'].mean(), avg_price=sold['price'].mean(),
+ avg_price=sold['price'].mean(), avg_cost=sold['tcost'].mean(),
+ avg_profit=sold['profit'].mean(),
  cost_on_hand=unsold['bc'].sum(),
  sold_6m=int((sold['days']<=183).sum()), pct_6m=100*(sold['days']<=183).sum()/len(sold),
  sold_90=int((sold['days']<=90).sum()), pct_90=100*(sold['days']<=90).sum()/len(sold),
@@ -54,6 +55,11 @@ R=dict(
  span_yrs=(ASOF-WINDOW).days/365.25)
 R['profit_per_yr']=R['profit_all']/R['span_yrs']
 R['taken_per_yr']=R['taken']/R['span_yrs']
+
+for tag,g in (('pre',pre),('spec',spec)):
+    R['avg_price_'+tag]=g['price'].mean(); R['avg_cost_'+tag]=g['tcost'].mean()
+    R['avg_profit_'+tag]=g['profit'].mean()
+    R['margin_'+tag]=100*g['profit'].sum()/g['price'].sum()
 
 for k,v in R.items():
     print("%-16s %s"%(k, format(v,',.1f') if isinstance(v,float) else v))
